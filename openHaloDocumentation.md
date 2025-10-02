@@ -64,7 +64,8 @@ Pour vérifier ces créations :
 id halo
 ```
 Cela est censé donner :
-```uid=1000(halo) gid=1000(halo) groups=1000(halo)
+```bash
+uid=1000(halo) gid=1000(halo) groups=1000(halo)
 ```
 
 Il est préférable d’utiliser OpenHalo avec l’utilisateur halo.
