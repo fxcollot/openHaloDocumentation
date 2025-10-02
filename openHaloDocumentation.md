@@ -61,7 +61,10 @@ useradd -u 1000 -g halo halo
 ```
 Pour vérifier ces créations : 
 ```bash
-id halo est censé donner uid=1000(halo) gid=1000(halo) groups=1000(halo)
+id halo
+```
+Cela est censé donner :
+```uid=1000(halo) gid=1000(halo) groups=1000(halo)
 ```
 
 Il est préférable d’utiliser OpenHalo avec l’utilisateur halo.
