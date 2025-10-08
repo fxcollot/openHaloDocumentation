@@ -32,7 +32,7 @@ Open a terminal, update your system, and install the required build tools for Op
 sudo apt-get update
 sudo apt install build-essential gcc g++ make cmake autoconf uuid-dev libicu-dev zlib1g-dev libreadline-dev -y
 ```
-> Note for beginners: On some systems (Mac, Chromebook, or restricted Linux accounts), you may need to use sudo with more commands if you encounter "permission denied" errors.
+> Note: libicu-dev provides Unicode support, libreadline-dev enables command-line editing in psql, and uuid-dev is used for unique IDs in OpenHalo.
 
 This installs a C compiler and necessary libraries for OpenHalo.
 
@@ -50,6 +50,7 @@ You may also need the PostgreSQL client to test connections independently of pg_
 ```bash
 sudo apt install postgresql-client
 ```
+> Note for beginners: On some systems (Mac, Chromebook, or restricted Linux accounts), you may need to use sudo with more commands if you encounter "permission denied" errors. 
 
 ## Downloading and Compiling OpenHalo
 
@@ -63,7 +64,7 @@ The files are cloned to your computer. Now, go into the repository directory and
 cd openHalo
 ./configure --prefix=/home/halo/openhalo/1.0 --enable-debug --with-uuid=ossp --with-icu CFLAGS=-O2
 ```
-This command checks that all necessary libraries are available and configures the build.
+> Explanation: This checks your system for necessary libraries and creates Makefiles. Errors will be logged in config.log.
 
 Compile and install OpenHalo:
 ```bash
@@ -98,7 +99,7 @@ Expected output:
 ```bash
 uid=1000(halo) gid=1000(halo) groups=1000(halo)
 ```
-> Beginner tip: OpenHalo should be run as the halo user to avoid permission issues.
+> Note: OpenHalo should run as halo to avoid permission issues. For extra security, you can lock halo from SSH login.
 
 Switch to the halo user:
 ```bash
@@ -121,18 +122,18 @@ Set the environment variables so that the shell knows where OpenHalo binaries an
 
 $\Rightarrow$ Option 1: Using ~/.bashrc
 
-Open the file:
+Edit the file:
 ```bash
 nano ~/.bashrc
 ```
 
 Add the following lines:
 ```bash
-export HALO_HOME=/home/halo/openhalo/1.0
-export PGDATA=/home/halo/ohdata
-export PATH=$HALO_HOME/bin:$PATH
-export LD_LIBRARY_PATH=$HALO_HOME/lib:$LD_LIBRARY_PATH
-export PGHOST=/var/run/openhalo
+export HALO_HOME=/home/halo/openhalo/1.0 # OpenHalo binaries and libraries
+export PGDATA=/home/halo/ohdata # PostgreSQL data directory
+export PATH=$HALO_HOME/bin:$PATH # Add OpenHalo binaries to PATH
+export LD_LIBRARY_PATH=$HALO_HOME/lib:$LD_LIBRARY_PATH # Add OpenHalo libs
+export PGHOST=/var/run/openhalo # PostgreSQL socket location
 alias pg_ctl='/home/halo/openhalo/1.0/bin/pg_ctl -D /home/halo/ohdata'
 ```
 
@@ -164,11 +165,11 @@ nano .envrc
 
 Add the same environment variable lines as above:
 ```bash
-export HALO_HOME=/home/halo/openhalo/1.0
-export PGDATA=/home/halo/ohdata
-export PATH=$HALO_HOME/bin:$PATH
-export LD_LIBRARY_PATH=$HALO_HOME/lib:$LD_LIBRARY_PATH
-export PGHOST=/var/run/openhalo
+export HALO_HOME=/home/halo/openhalo/1.0 # OpenHalo binaries and libraries
+export PGDATA=/home/halo/ohdata # PostgreSQL data directory
+export PATH=$HALO_HOME/bin:$PATH # Add OpenHalo binaries to PATH
+export LD_LIBRARY_PATH=$HALO_HOME/lib:$LD_LIBRARY_PATH # Add OpenHalo libs
+export PGHOST=/var/run/openhalo # PostgreSQL socket location
 alias pg_ctl='/home/halo/openhalo/1.0/bin/pg_ctl -D /home/halo/ohdata'
 ```
 
@@ -205,6 +206,7 @@ Initialize the database:
 ```bash
 pg_ctl init -D $PGDATA
 ```
+> Explanation: Creates necessary system tables and directories for PostgreSQL.
 
 Check status, start, stop, or restart the server:
 ```bash
@@ -213,6 +215,7 @@ pg_ctl start
 pg_ctl restart
 pg_ctl stop
 ```
+> Warning: Existing data in $PGDATA will be overwritten.
 
 ## OpenHalo/PostgreSQL Configuration
 
@@ -223,11 +226,11 @@ nano $PGDATA/postgresql.conf
 
 Add or modify the following lines:
 ```bash
-listen_addresses = '*'
-port = 5432
-database_compat_mode = 'mysql'
-mysql.listener_on = true
-mysql.port = 3306
+listen_addresses = '*' # Listen on all IP addresses
+port = 5432 # Default PostgreSQL port
+database_compat_mode = 'mysql' # Enable MySQL compatibility mode
+mysql.listener_on = true # Enable MySQL listener
+mysql.port = 3306 # MySQL-compatible port
 ```
 
 Save and exit: Ctrl+O, Enter, Ctrl+X.
@@ -240,8 +243,8 @@ nano $PGDATA/pg_hba.conf
 Add or modify the following lines:
 ```bash
 # IPv4 local connections:
-host    all             all             127.0.0.1/32            trust
-host    all             all             0.0.0.0/0               scram-sha-256
+host    all             all             127.0.0.1/32            trust # Local IPv4 connections without password (useful for internal scripts)
+host    all             all             0.0.0.0/0               scram-sha-256 # IPv4 connections from any IP with SCRAM-SHA-256 authentication
 ```
 
 Save and exit: Ctrl+O, Enter, Ctrl+X.
@@ -255,6 +258,7 @@ Check status:
 ```bash
 pg_ctl status
 ```
+> Tip: Ensure firewall allows ports 5432 and 3306.
 
 ## MySQL Extension Activation
 
@@ -274,7 +278,6 @@ SET password_encryption = 'caching_sha2_password';  # Recommended for MySQL 8.0+
 CREATE USER test PASSWORD 'test';
 SELECT * FROM pg_shadow WHERE usename='test';
 ```
-
 > Security note: This is an example. Change the password in production for better security.
 
 Exit PostgreSQL:
@@ -335,6 +338,7 @@ ss -tlnp | grep 5432
 ss -tlnp | grep 3306
 ```
 - MySQL extension not found → make sure `aux_mysql` is compiled and installed correctly.
+- Logs can help diagnose issues (see below).
 
 ## Logging
 
@@ -371,10 +375,11 @@ For the next session, switch to the halo user:
 su - halo
 ```
 
-Reload environment variables:
+Reload environment variables if using ~/.bashrc:
 ```bash
 . ~/.bashrc
 ```
+> If using direnv, just navigate to the OpenHalo directory.
 
 Start the server and check status:
 ```bash
@@ -403,6 +408,7 @@ CREATE DATABASE projectdb OWNER username;   # Modify as needed
 \q
 mysql -P 3306 -h 127.0.0.1 -uusername -p    # Modify as username
 ```
+> Tip: Assign privileges using GRANT ALL PRIVILEGES ON DATABASE projectdb TO username;
 
 ## Loading a PostgreSQL Database into OpenHalo
 
@@ -442,6 +448,11 @@ mysql -P 3306 -h 127.0.0.1 -utest -p your_database < /home/halo/backup/mysql_bac
 ```
 
 ## Updating OpenHalo
+
+Stop server before updating:
+```bash
+pg_ctl stop
+```
 
 To update OpenHalo to the latest version from GitHub:
 ```bash
