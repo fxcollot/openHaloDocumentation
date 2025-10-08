@@ -1,94 +1,132 @@
-# Documentation : Installation et configuration d’OpenHalo
+# Documentation: Installation and Configuration of OpenHalo
 
+## Table of Contents
 
-## Pré-requis
+1. [Prerequisites](#prerequisites)
+2. [Downloading and Compiling OpenHalo](#downloading-and-compiling-openhalo)
+3. [Server Configuration](#server-configuration)
+4. [Environment Variables Setup](#environment-variables-setup)
+   - [Option 1: Using ~/.bashrc](#option-1-using-bashrc)
+   - [Option 2: Using direnv](#option-2-using-direnv)
+5. [Security and Permissions](#security-and-permissions)
+6. [Database Initialization](#database-initialization)
+7. [OpenHalo/PostgreSQL Configuration](#openhalopostgresql-configuration)
+8. [MySQL Extension Activation](#mysql-extension-activation)
+9. [Architecture Overview](#architecture-overview)
+10. [Final Verification](#final-verification)
+11. [Troubleshooting Tips](#troubleshooting-tips)
+12. [Logging](#logging)
+13. [Stopping and Restarting OpenHalo](#stopping-and-restarting-openhalo)
+14. [Creating Additional Users](#creating-additional-users)
+15. [Loading a PostgreSQL Database into OpenHalo](#loading-a-postgresql-database-into-openhalo)
+16. [Loading a MySQL Database into OpenHalo](#loading-a-mysql-database-into-openhalo)
+17. [Backup and Restore](#backup-and-restore)
+18. [Updating OpenHalo](#updating-openhalo)
 
-Il faut posséder un environnement Linux. Par exemple, sur Windows il est possible de télécharger WSL en ouvrant PowerShell en administrateur : 
-```bash
-wsl –-install
-```
-Par défaut, un terminal Linux, Ubuntu, sera installé.
+## Prerequisites
 
-Maintenant, il faut ouvrir un terminal Linux, le mettre à jour et installer les outils nécessaires à l’installation d’OpenHalo : 
+You need a Linux environment (for example, WSL on Windows, Ubuntu, or a Linux-based Chromebook).
+
+Open a terminal, update your system, and install the required build tools for OpenHalo:
 ```bash
 sudo apt-get update
 sudo apt install build-essential gcc g++ make cmake autoconf uuid-dev libicu-dev zlib1g-dev libreadline-dev -y
 ```
-Ainsi un compilateur C et les librairies nécessaires ont été installées.
+> Note for beginners: On some systems (Mac, Chromebook, or restricted Linux accounts), you may need to use sudo with more commands if you encounter "permission denied" errors.
 
-Il faut également posséder MySQL client. Voici comment l’installer : 
+This installs a C compiler and necessary libraries for OpenHalo.
+
+Make sure you have Git installed to clone the OpenHalo repository:
+```bash
+sudo apt install git
+```
+
+You also need to have the MySQL client installed. Here’s how to install it:
 ```bash
 sudo apt install mysql-client-core-8.0
 ```
 
-## Téléchargement et compilation d’OpenHalo
+You may also need the PostgreSQL client to test connections independently of pg_ctl:
+```bash
+sudo apt install postgresql-client
+```
 
-Désormais, il faut cloner les données d’OpenHalo présentes sur GitHub : 
+## Downloading and Compiling OpenHalo
+
+Clone the OpenHalo repository from GitHub:
 ```bash
 git clone https://github.com/HaloTech-Co-Ltd/openHalo.git
 ```
 
-Les données sont cloner sur l’ordinateur. Il faut maintenant installer depuis le code source, et il faut se placer dans le dossier openHalo : 
+The files are cloned to your computer. Now, go into the repository directory and prepare the compilation:
 ```bash
 cd openHalo
 ./configure --prefix=/home/halo/openhalo/1.0 --enable-debug --with-uuid=ossp --with-icu CFLAGS=-O2
 ```
-Cette ligne a préparé la compilation et a vérifié les bibliothèques.
-La compilation et l’installation se font avec : 
+This command checks that all necessary libraries are available and configures the build.
+
+Compile and install OpenHalo:
 ```bash
 make && make install
 ```
 
-Pour compiler les modules supplémentaires, il faut se placer dans le dossier contrib : 
+To compile additional modules, navigate to the contrib directory:
 ```bash
 cd contrib
 make && make install
 ```
 
-## Configuration du serveur
+## Server Configuration
 
-Il faut créer le groupe halo avec l’identifiant ID 1000 : 
+Create the halo group with ID 1000:
 ```bash
 groupadd -g 1000 halo
 ```
-Si l’ID est déjà pris, il est possible d’en prendre un autre : 
-```bash
-groupadd -g 1500 halo
-```
-Il faut ensuite ajouter l’utilisateur halo au bon ID : 
+> Tip: If ID 1000 is already used, pick another number (for example, 1500).
+
+Add the halo user to this group:
 ```bash
 useradd -u 1000 -g halo halo
 ```
-Pour vérifier ces créations : 
+
+Check that the user and group were created:
 ```bash
 id halo
 ```
-Cela est censé donner :
+
+Expected output:
 ```bash
 uid=1000(halo) gid=1000(halo) groups=1000(halo)
 ```
+> Beginner tip: OpenHalo should be run as the halo user to avoid permission issues.
 
-Il est préférable d’utiliser OpenHalo avec l’utilisateur halo.
-Pour cela, il faut se placer en tant qu’halo avec : 
+Switch to the halo user:
 ```bash
 su - halo
 ```
-(Si un mot de passe est demandé, il faut le créer préalablement avec passwd halo)
+If prompted for a password, create one first with:
+```bash
+sudo passwd halo
+```
 
-Il faut maintenant préparer les variables d’environnement. 
-Il faut créer un dossier pour les sockets :
+## Environment Variables Setup
+
+Create a directory for sockets:
 ```bash 
 mkdir /var/run/openhalo
 chown halo:halo /var/run/openhalo
 ```
 
-Ensuite, il faut définir les variables d’environnement qui permettent au shell de savoir où sont les binaires d’OpenHalo, où se trouvent les données, et comment trouver les librairies.
-Pour cela, il est préférable de modifier le fichier ~/.bashrc : 
-Pour l’ouvrir : 
+Set the environment variables so that the shell knows where OpenHalo binaries and data are located, and where to find libraries.
+
+$\Rightarrow$ Option 1: Using ~/.bashrc
+
+Open the file:
 ```bash
 nano ~/.bashrc
 ```
-Maintenant il faut ajouter les lignes suivantes au fichier : 
+
+Add the following lines:
 ```bash
 export HALO_HOME=/home/halo/openhalo/1.0
 export PGDATA=/home/halo/ohdata
@@ -97,27 +135,78 @@ export LD_LIBRARY_PATH=$HALO_HOME/lib:$LD_LIBRARY_PATH
 export PGHOST=/var/run/openhalo
 alias pg_ctl='/home/halo/openhalo/1.0/bin/pg_ctl -D /home/halo/ohdata'
 ```
-Pour enregistrer les modifications : Ctrl+O, puis Entrée et quitter avec Ctrl+X
-Pour appliquer les changements : 
+
+Save and exit: Ctrl+O, Enter, Ctrl+X.
+
+Apply the changes:
 ```bash
 . ~/.bashrc
 ```
-Il est possible de vérifier : 
+
+$\Rightarrow$ Option 2: Using direnv (recommended if you want automatic loading in the directory)
+
+Install direnv if not already installed:
+```bash
+sudo apt install direnv
+```
+
+Activate direnv in your shell:
+```bash
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Create a .envrc file in the OpenHalo directory:
+```bash
+cd /home/halo/openhalo/1.0
+nano .envrc
+```
+
+Add the same environment variable lines as above:
+```bash
+export HALO_HOME=/home/halo/openhalo/1.0
+export PGDATA=/home/halo/ohdata
+export PATH=$HALO_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$HALO_HOME/lib:$LD_LIBRARY_PATH
+export PGHOST=/var/run/openhalo
+alias pg_ctl='/home/halo/openhalo/1.0/bin/pg_ctl -D /home/halo/ohdata'
+```
+
+Allow direnv to load the file:
+```bash
+direnv allow
+```
+
+> Note for beginners: With direnv, every time you enter this directory, variables and aliases are applied automatically. They are removed when you leave the directory.
+
+$\Rightarrow$ Check if the environment variables are set correctly:
 ```bash
 echo $PATH
 echo $PGDATA
 which pg_ctl
 ```
-Cette dernière ligne doit afficher /home/halo/openhalo/1.0/bin/pg_ctl
 
-## Initialisation de la base de données
+> Note: If you encounter "permission denied" errors, try prepending sudo to commands that interact with system directories.
 
-Il faut initialiser la base de données avec cette commande : 
+## Security and Permissions
+
+Never run OpenHalo as root except for installation or system commands.
+
+Ensure proper ownership and permissions on data directories:
+
+```bash
+chown -R halo:halo /home/halo/ohdata
+chmod 700 /home/halo/ohdata
+```
+
+## Database Initialization
+
+Initialize the database:
 ```bash
 pg_ctl init -D $PGDATA
 ```
 
-L’environnement du serveur a bien été configuré, maintenant il est possible de regarder le statut, de lancer, arrêter ou relancer le serveur : 
+Check status, start, stop, or restart the server:
 ```bash
 pg_ctl status
 pg_ctl start
@@ -125,14 +214,14 @@ pg_ctl restart
 pg_ctl stop
 ```
 
-## Configuration de OpenHalo/PostgreSQL
+## OpenHalo/PostgreSQL Configuration
 
-Pour cela, il faut modifier le fichier postgresql.conf.
-Pour l’ouvrir : 
+Edit the postgresql.conf file:
 ```bash
 nano $PGDATA/postgresql.conf
 ```
-Dans ce fichier, il faut ajouter, modifier ou enlever le # commentaire de ces lignes : 
+
+Add or modify the following lines:
 ```bash
 listen_addresses = '*'
 port = 5432
@@ -140,124 +229,224 @@ database_compat_mode = 'mysql'
 mysql.listener_on = true
 mysql.port = 3306
 ```
-Pour enregistrer puis quitter : Ctrl+O, puis Entrée et Ctrl+X
 
-De même, il faut modifier le fichier pg_hba.conf.
-Pour l’ouvrir : 
+Save and exit: Ctrl+O, Enter, Ctrl+X.
+
+Edit pg_hba.conf: 
 ```bash
 nano $PGDATA/pg_hba.conf
 ```
-Dans ce fichier, il faut ajouter, modifier ou enlever le # commentaire de ces lignes : 
+
+Add or modify the following lines:
 ```bash
 # IPv4 local connections:
 host    all             all             127.0.0.1/32            trust
-host    all             all             0.0.0.0/0                     md5
+host    all             all             0.0.0.0/0               scram-sha-256
 ```
-Pour enregistrer puis quitter : Ctrl+O, puis Entrée et Ctrl+X
 
-Maintenant, il est possible de relancer le serveur : 
+Save and exit: Ctrl+O, Enter, Ctrl+X.
+
+Restart the server (or start it if not yet running):
 ```bash
 pg_ctl restart
 ```
-Pour vérifier si ça tourne : 
+
+Check status:
 ```bash
 pg_ctl status
 ```
 
-## Activation de l’extension MySQL
+## MySQL Extension Activation
 
-Il faut se connecter à PostgreSQL : 
+Connect to PostgreSQL:
 ```bash
 psql -p 5432
 ```
-Dans cette interface : 
+
+Create the MySQL extension:
 ```bash
 CREATE EXTENSION aux_mysql CASCADE;
 ```
-Puis il faut créer un utilisateur pour MySQL : 
+
+Create a MySQL-compatible user:
 ```bash
-SET password_encryption = 'mysql_native_password';
+SET password_encryption = 'caching_sha2_password';  # Recommended for MySQL 8.0+ for stronger security. For older clients, use 'mysql_native_password'.
 CREATE USER test PASSWORD 'test';
 SELECT * FROM pg_shadow WHERE usename='test';
 ```
-Ensuite, il faut quitter psql : 
+
+> Security note: This is an example. Change the password in production for better security.
+
+Exit PostgreSQL:
 ```bash
 \q
 ```
 
-Maintenant, il est possible de tester la connexion MySQL : 
+Test MySQL connection:
 ```bash
 mysql -P 3306 -h 127.0.0.1
 ```
-Le mot de passe est test.
-Pour quitter mysql :
+
+Exit MySQL:
 ```bash
 \q
 ```
 
-Voici des tests pour comprendre comment le lien entre MySQL et PostgreSQL se fait : 
+Here are some tests to understand how the link between MySQL and PostgreSQL works:
 
-![Tests](exempleOpenHalo.png)
+![Example](exampleOpenHalo.png)
 
-## Vérification finale
+## Architecture Overview
 
-Pour voir si PostgreSQL écoute bien sur 5432 et MySQL listener sur 3306
+Here’s a simplified diagram showing how OpenHalo interacts with PostgreSQL and MySQL:
+```pgsql
+                 +----------------+
+                 |    OpenHalo    |
+                 +----------------+
+                    |          |
+                    |          |
+                    v          v
+           +----------------+  +----------------+
+           |  PostgreSQL    |  |     MySQL      |
+           | Port: 5432     |  | Port: 3306     |
+           | Stores data    |  | MySQL Extension|
+           +----------------+  +----------------+
+```
+**Explanation:**
+* OpenHalo acts as a middleware and can interact with both databases.
+* PostgreSQL (5432) holds the main data.
+* MySQL (3306) is used through OpenHalo’s MySQL extension for compatibility and MySQL queries.
+
+## Final Verification
+
+Check if PostgreSQL listens on 5432 and MySQL on 3306:
 ```bash
 pg_ctl status
-ss -tlnp | grep 5432
+ss -tlnp | grep 5432    # sudo may be required to see all processes
 ss -tlnp | grep 3306
 ```
 
-## Arrêt et redémarrage du serveur OpenHalo
+## Troubleshooting Tips
 
-Quand la session est finie, il faut arrêter PostgreSQL/OpenHalo : 
+- `permission denied` errors → make sure you are using the `halo` user and check folder permissions.
+- Port already in use → check with:
+```bash
+ss -tlnp | grep 5432
+ss -tlnp | grep 3306
+```
+- MySQL extension not found → make sure `aux_mysql` is compiled and installed correctly.
+
+## Logging
+
+OpenHalo/PostgreSQL logs can help debug issues. By default, logs are stored in `$PGDATA`.
+
+To monitor logs in real time:
+```bash
+tail -f $PGDATA/logfile
+```
+
+You can also configure logging in `postgresql.conf`:
+```bash
+logging_collector = on
+log_directory = 'pg_log'
+log_filename = 'openhalo-%Y-%m-%d.log'
+```
+
+## Stopping and Restarting OpenHalo
+
+Stop PostgreSQL/OpenHalo at the end of a session:
 ```bash
 pg_ctl stop
 ```
-Puis vérifier l’état et si le serveur n’écoute plus : 
+
+Verify the server is no longer listening:
 ```bash
 pg_ctl status
 ss -tlnp | grep 5432
 ss -tlnp | grep 3306
 ```
 
-Lors d’une prochaine utilisation, il faut tout d’abord ouvrir une session avec l’utilisateur halo : 
+For the next session, switch to the halo user:
 ```bash
 su - halo
 ```
-Recharger les variables d’environnement : 
+
+Reload environment variables:
 ```bash
-.~/.bashrc
+. ~/.bashrc
 ```
-Lancer le serveur et vérifier l’état : 
+
+Start the server and check status:
 ```bash
 pg_ctl start
 pg_ctl status
 ```
-Une fois le serveur lancé, il est possible d’accéder à PostgreSQL : 
+
+Access PostgreSQL:
 ```bash
 psql -p 5432
 ```
-Et à MySQL (mot de passe test): 
+
+Access MySQL:
 ```bash
 mysql -P 3306 -h 127.0.0.1 
 ```
 
-## Création d’autres utilisateurs
+## Creating Additional Users
 
-Il est aussi possible de créer d’autres utilisateurs MySQL compatibles dans PostgreSQL : 
+Create additional MySQL-compatible users in PostgreSQL:
 ```bash
 psql -p 5432
-SET password_encryption = mysql_native_password;
-CREATE USER nom PASSWORD 'mon_mot_de_passe';
-CREATE DATABASE projetdb OWNER nom;
+SET password_encryption = 'caching_sha2_password';
+CREATE USER username PASSWORD 'your_password';  # Modify as needed
+CREATE DATABASE projectdb OWNER username;   # Modify as needed
 \q
-mysql -P 3306 -h 127.0.0.1 -unom -p
+mysql -P 3306 -h 127.0.0.1 -uusername -p    # Modify as username
 ```
 
-## Chargement d’une base de données PostgreSQL dans OpenHalo
+## Loading a PostgreSQL Database into OpenHalo
 
-Si l’on veut charger une base de données en PostgreSQL (par exemple fichier.sql) : 
 ```bash
-psql -p 5432 -U halo -d postgres -f chemin/vers/backup.sql
+psql -p 5432 -U halo -d postgres -f path/to/backup.sql
+```
+
+## Loading a MySQL Database into OpenHalo
+
+```bash
+mysql -P 3306 -h 127.0.0.1 -utest -p < path/to/backup.sql   # Password is the one used for the MySQL user (test in this example)
+```
+> Tip for beginners: If you get permission errors, try using sudo for MySQL commands.
+
+## Backup and Restore
+
+It is recommended to backup your databases before making major changes:
+
+* PostgreSQL backup
+```bash
+pg_dump -U halo -F c -b -v -f /home/halo/backup/openhalo_backup.pgsql postgres
+```
+
+* MySQL backup
+```bash
+mysqldump -P 3306 -h 127.0.0.1 -utest -p your_database > /home/halo/backup/mysql_backup.sql
+```
+To restore, simply use:
+* PostgreSQL restore
+```bash
+pg_restore -U halo -d postgres /home/halo/backup/openhalo_backup.pgsql
+```
+
+* MySQL restore
+```bash
+mysql -P 3306 -h 127.0.0.1 -utest -p your_database < /home/halo/backup/mysql_backup.sql
+```
+
+## Updating OpenHalo
+
+To update OpenHalo to the latest version from GitHub:
+```bash
+cd /home/halo/openhalo
+git pull
+./configure --prefix=/home/halo/openhalo/1.0 --enable-debug --with-uuid=ossp --with-icu CFLAGS=-O2
+make && make install
 ```
