@@ -27,7 +27,7 @@
 
 You need to install Docker on your environment.
 You can follow the instruction on this link from the official website of Docker : https://docs.docker.com/get-started/get-docker/
-The installation does not take time and is compatible for every environment.
+The installation does not take time and is compatible with every environment.
 
 ## Configuration of an OpenHalo container
 
