@@ -3,7 +3,7 @@
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
-2. [Configuration of an OpenHalo container](#Configuration of an OpenHalo container)
+2. [Configuration of an OpenHalo container](#configuration-of-an-OpenHalo-container)
 3. [Server Configuration](#server-configuration)
 4. [Environment Variables Setup](#environment-variables-setup)
    - [Option 1: Using ~/.bashrc](#option-1-using-bashrc)
