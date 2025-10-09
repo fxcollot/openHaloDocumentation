@@ -29,7 +29,23 @@ You need to install Docker on your environment.
 You can follow the instruction on this link from the official website of Docker : https://docs.docker.com/get-started/get-docker/
 The installation does not take time and is compatible for every environment.
 
-## Configuration of an OpenHalo container
+## Configuration of an Ubuntu container
+
+You need to install an ubuntu container, and then create it :
+
+'''bash
+docker pull Ubuntu:rolling
+docker run -it --name ContainerName ubuntu bash
+'''
+
+You now have a created a container. To restart that container :
+
+'''bash
+docker start -ai ContainerName 
+'''
+
+## Configuration of OpenHalo
+
 
 
 ## Server Configuration
