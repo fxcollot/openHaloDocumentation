@@ -58,6 +58,7 @@ Type this 2 commands :
 ```bash
 apt-get update && apt-get upgrade -y
 apt-get install git build-essential gcc g++ make cmake autoconf uuid-dev libicu-dev zlib1g-dev libreadline-dev -y
+apt install pkg-config libicu-dev
 ```
 You also need to have the MySQL client installed. Here’s how to install it:
 ```bash
