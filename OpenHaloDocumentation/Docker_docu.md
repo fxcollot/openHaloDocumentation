@@ -57,7 +57,7 @@ E: Unable to locate package git
 Type this 2 commands : 
 ```bash
 apt-get update && apt-get upgrade -y
-apt-get install git
+apt-get install git build-essential gcc g++ make cmake autoconf uuid-dev libicu-dev zlib1g-dev libreadline-dev -y
 ```
 
 Clone the OpenHalo repository from GitHub:
