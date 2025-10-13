@@ -59,6 +59,15 @@ Type this 2 commands :
 apt-get update && apt-get upgrade -y
 apt-get install git build-essential gcc g++ make cmake autoconf uuid-dev libicu-dev zlib1g-dev libreadline-dev -y
 ```
+You also need to have the MySQL client installed. Here’s how to install it:
+```bash
+apt install mysql-client-core-8.0
+```
+
+You may also need the PostgreSQL client to test connections independently of pg_ctl:
+```bash
+apt install postgresql-client
+```
 
 Clone the OpenHalo repository from GitHub:
 ```bash
