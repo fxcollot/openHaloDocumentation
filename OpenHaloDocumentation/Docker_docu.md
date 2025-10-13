@@ -46,6 +46,11 @@ docker start -ai ContainerName
 
 ## Configuration of OpenHalo
 
+Install Git
+```bash
+apt install git
+```
+
 Clone the OpenHalo repository from GitHub:
 ```bash
 git clone https://github.com/HaloTech-Co-Ltd/openHalo.git
