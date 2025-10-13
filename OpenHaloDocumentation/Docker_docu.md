@@ -46,6 +46,28 @@ docker start -ai ContainerName
 
 ## Configuration of OpenHalo
 
+Clone the OpenHalo repository from GitHub:
+```bash
+git clone https://github.com/HaloTech-Co-Ltd/openHalo.git
+```
+
+The files are cloned to your computer. Now, go into the repository directory and prepare the compilation:
+```bash
+cd openHalo
+./configure --prefix=/home/halo/openhalo/1.0 --enable-debug --with-uuid=ossp --with-icu CFLAGS=-O2
+```
+> Explanation: This checks your system for necessary libraries and creates Makefiles. Errors will be logged in config.log.
+
+Compile and install OpenHalo:
+```bash
+make && make install
+```
+
+To compile additional modules, navigate to the contrib directory:
+```bash
+cd contrib
+make && make install
+```
 
 
 ## Server Configuration
