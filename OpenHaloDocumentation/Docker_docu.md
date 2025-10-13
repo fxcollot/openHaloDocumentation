@@ -75,7 +75,7 @@ Clone the OpenHalo repository from GitHub:
 git clone https://github.com/HaloTech-Co-Ltd/openHalo.git
 ```
 
-The files are cloned to your computer. Now, go into the repository directory and prepare the compilation:
+The files are cloned to your computer. Now, go into the repository directory and prepare the compilation: (on enlève --with -uuid=ossp)
 ```bash
 cd openHalo
 ./configure --prefix=/home/halo/openhalo/1.0 --enable-debug --with-uuid=ossp --with-icu CFLAGS=-O2
