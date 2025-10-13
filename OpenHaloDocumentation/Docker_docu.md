@@ -59,6 +59,10 @@ Type this 2 commands :
 apt-get update && apt-get upgrade -y
 apt-get install git build-essential gcc g++ make cmake autoconf uuid-dev libicu-dev zlib1g-dev libreadline-dev -y
 apt install pkg-config libicu-dev
+apt install bison
+apt install flex
+apt install nano
+apt install postgresql
 ```
 You also need to have the MySQL client installed. Here’s how to install it:
 ```bash
@@ -124,7 +128,7 @@ su - halo
 ```
 If prompted for a password, create one first with:
 ```bash
-sudo passwd halo
+passwd halo
 ```
 
 ## Environment Variables Setup
@@ -165,7 +169,7 @@ $\Rightarrow$ Option 2: Using direnv (recommended if you want automatic loading 
 
 Install direnv if not already installed:
 ```bash
-sudo apt install direnv
+apt install direnv
 ```
 
 Activate direnv in your shell:
