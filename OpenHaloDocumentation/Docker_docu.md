@@ -34,7 +34,7 @@ The installation does not take time and is compatible with every environment.
 You need to install an ubuntu container, and then create it :
 
 ```bash
-docker pull Ubuntu:rolling
+docker pull ubuntu:rolling
 docker run -it --name ContainerName ubuntu bash
 ```
 
