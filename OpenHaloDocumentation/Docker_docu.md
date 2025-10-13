@@ -291,7 +291,7 @@ CREATE EXTENSION aux_mysql CASCADE;
 
 Create a MySQL-compatible user:
 ```bash
-SET password_encryption = 'caching_sha2_password';  # Recommended for MySQL 8.0+ for stronger security. For older clients, use 'mysql_native_password'.
+SET password_encryption = 'scram-sha-256';  # Recommended for MySQL 8.0+ for stronger security. For older clients, use 'mysql_native_password'.
 CREATE USER test PASSWORD 'test';
 SELECT * FROM pg_shadow WHERE usename='test';
 ```
