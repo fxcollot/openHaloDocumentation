@@ -50,6 +50,15 @@ Install Git
 ```bash
 apt install git
 ```
+If you get this response : 
+```bash
+E: Unable to locate package git
+```
+Type this 2 commands : 
+```bash
+apt-get update && apt-get upgrade -y
+apt-get install git
+```
 
 Clone the OpenHalo repository from GitHub:
 ```bash
