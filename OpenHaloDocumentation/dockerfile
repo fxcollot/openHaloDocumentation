@@ -2,15 +2,15 @@ FROM ubuntu:rolling
 
 RUN apt-get update && apt-get upgrade -y
 RUN apt-get install git build-essential gcc g++ make cmake autoconf uuid-dev libicu-dev zlib1g-dev libreadline-dev -y
-RUN apt install pkg-config libicu-dev
-RUN apt install bison
-RUN apt install flex
-RUN apt install nano
-RUN apt install postgresql
-RUN apt install direnv
+RUN apt install -y pkg-config libicu-dev
+RUN apt install -y bison
+RUN apt install -y flex
+RUN apt install -y nano
+RUN apt install -y postgresql
+RUN apt install -y direnv
 
-RUN apt install mysql-client-core-8.0
-RUN apt install postgresql-client
+RUN apt install -y mysql-client-core-8.0
+RUN apt install -y postgresql-client
 RUN git clone https://github.com/HaloTech-Co-Ltd/openHalo.git
 
 WORKDIR /openHalo
