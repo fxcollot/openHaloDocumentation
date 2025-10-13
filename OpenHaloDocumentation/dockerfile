@@ -1,0 +1,64 @@
+FROM ubuntu:rolling
+
+RUN apt-get update && apt-get upgrade -y
+RUN apt-get install git build-essential gcc g++ make cmake autoconf uuid-dev libicu-dev zlib1g-dev libreadline-dev -y
+RUN apt install pkg-config libicu-dev
+RUN apt install bison
+RUN apt install flex
+RUN apt install nano
+RUN apt install postgresql
+RUN apt install direnv
+
+RUN apt install mysql-client-core-8.0
+RUN apt install postgresql-client
+RUN git clone https://github.com/HaloTech-Co-Ltd/openHalo.git
+
+WORKDIR /openHalo
+RUN ./configure --prefix=/home/halo/openhalo/1.0 --enable-debug --with-icu CFLAGS=-O2
+RUN make && make install
+WORKDIR /contrib
+RUN make && make install
+
+RUN groupadd -g 1500 halo
+RUN useradd -u 1500 -g 1500 -m halo
+RUN chown -R halo:halo /openHalo
+USER halo
+
+RUN mkdir /var/run/openhalo
+RUN chown halo:halo /var/run/openhalo
+
+RUN echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+RUN source ~/.bashrc
+
+WORKDIR /home/halo/openhalo/1.0
+
+
+RUN cat >> ~/.envrc <<'EOF'
+export HALO_HOME=/home/halo/openhalo/1.0 # OpenHalo binaries and libraries
+export PGDATA=/home/halo/ohdata # PostgreSQL data directory
+export PATH=$HALO_HOME/bin:$PATH # Add OpenHalo binaries to PATH
+export LD_LIBRARY_PATH=$HALO_HOME/lib:$LD_LIBRARY_PATH # Add OpenHalo libs
+export PGHOST=/var/run/openhalo # PostgreSQL socket location
+alias pg_ctl='/home/halo/openhalo/1.0/bin/pg_ctl -D /home/halo/ohdata'
+EOF
+RUN direnv allow
+
+RUN chown -R halo:halo /home/halo/ohdata
+RUN chmod 700 /home/halo/ohdata
+
+RUN pg_ctl init -D $PGDATA 
+
+RUN cat >> $PGDATA/postgresql.conf <<'EOF'
+listen_addresses = '*' # Listen on all IP addresses
+port = 5432 # Default PostgreSQL port
+database_compat_mode = 'mysql' # Enable MySQL compatibility mode
+mysql.listener_on = true # Enable MySQL listener
+mysql.port = 3306 # MySQL-compatible port
+EOF
+
+RUN pg_ctl start
+
+RUN psql -p 5432 -c "CREATE EXTENSION aux_mysql CASCADE;"
+RUN psql -p 5432 -c "SET password_encryption = 'scram-sha-256';"
+RUN psql -p 5432 -c "CREATE USER test PASSWORD 'test';"
+RUN psql -p 5432 -c "SELECT * FROM pg_shadow WHERE usename='test';"
