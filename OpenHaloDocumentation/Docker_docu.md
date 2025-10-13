@@ -341,9 +341,8 @@ Here’s a simplified diagram showing how OpenHalo interacts with PostgreSQL and
 
 Check if PostgreSQL listens on 5432 and MySQL on 3306:
 ```bash
-pg_ctl status
-ss -tlnp | grep 5432    # sudo may be required to see all processes
-ss -tlnp | grep 3306
+exit
+netstat -tulpn
 ```
 
 ## Troubleshooting Tips
