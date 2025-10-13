@@ -33,16 +33,16 @@ The installation does not take time and is compatible with every environment.
 
 You need to install an ubuntu container, and then create it :
 
-'''bash
+```bash
 docker pull Ubuntu:rolling
 docker run -it --name ContainerName ubuntu bash
-'''
+```
 
 You now have a created a container. To restart that container :
 
-'''bash
+```bash
 docker start -ai ContainerName 
-'''
+```
 
 ## Configuration of OpenHalo
 
