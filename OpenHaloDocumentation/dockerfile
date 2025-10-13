@@ -5,7 +5,6 @@ RUN apt-get install git build-essential gcc g++ make cmake autoconf uuid-dev lib
 RUN apt install -y pkg-config libicu-dev
 RUN apt install -y bison
 RUN apt install -y flex
-RUN apt install -y nano
 RUN apt install -y postgresql
 RUN apt install -y direnv
 
