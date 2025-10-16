@@ -112,10 +112,40 @@ sudo passwd halo
 
 ## Environment Variables Setup
 
-Create a directory for sockets:
-```bash 
-mkdir /var/run/openhalo
-chown halo:halo /var/run/openhalo
+Create a persistent directory for sockets.
+
+Since `/var/run` is cleared on each reboot, we need to create a systemd configuration to recreate the directory automatically.
+
+Create a tmpfiles configuration:
+```bash
+sudo nano /etc/tmpfiles.d/openhalo.conf
+```
+
+Add this line:
+```
+d /var/run/openhalo 0755 halo halo -
+```
+
+Save and exit: Ctrl+O, Enter, Ctrl+X.
+
+Apply the configuration immediately:
+```bash
+sudo systemd-tmpfiles --create
+```
+
+This will:
+- Create `/var/run/openhalo` with permissions 755
+- Set owner to `halo:halo`
+- Recreate it automatically at each system boot
+
+Verify the directory was created:
+```bash
+ls -ld /var/run/openhalo
+```
+
+You should see:
+```
+drwxr-xr-x 2 halo halo 40 Oct 16 10:00 /var/run/openhalo
 ```
 
 Set the environment variables so that the shell knows where OpenHalo binaries and data are located, and where to find libraries.
