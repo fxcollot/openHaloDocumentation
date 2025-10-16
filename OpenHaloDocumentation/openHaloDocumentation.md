@@ -116,6 +116,11 @@ Create a persistent directory for sockets.
 
 Since `/var/run` is cleared on each reboot, we need to create a systemd configuration to recreate the directory automatically.
 
+Switch to the root user:
+```bash
+exit
+```
+
 Create a tmpfiles configuration:
 ```bash
 sudo nano /etc/tmpfiles.d/openhalo.conf
@@ -146,6 +151,11 @@ ls -ld /var/run/openhalo
 You should see:
 ```
 drwxr-xr-x 2 halo halo 40 Oct 16 10:00 /var/run/openhalo
+```
+
+Now, switch again to the halo user:
+```bash
+su - halo
 ```
 
 Set the environment variables so that the shell knows where OpenHalo binaries and data are located, and where to find libraries.
