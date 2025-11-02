@@ -1,6 +1,6 @@
 # OpenHalo Performance Testing Protocol
 
-## What are we doing?
+## The goal
 
 OpenHalo translates MySQL queries into PostgreSQL queries. We need to check two things:
 1. Do the translated queries give the same results?
@@ -549,27 +549,9 @@ After 10 runs, calculate:
 - **p99**: Sort times and take the value at position 9.9 (99th percentile)
 - **Standard deviation**: Measure of variation
 
-Example with 10 runs: 11ms, 12ms, 10ms, 13ms, 12ms, 11ms, 14ms, 12ms, 11ms, 13ms
-
-- Sorted: 10, 11, 11, 11, 12, 12, 12, 13, 13, 14
-- Mean: (10+11+11+11+12+12+12+13+13+14) / 10 = 11.9ms
-- Median: (12+12) / 2 = 12ms
-- p95: 13.5ms (between 9th and 10th value)
-- p99: 13.9ms
-
 ## Performance classification
 
 Calculate ratio: `PostgreSQL time / MySQL time`
-
-**Example 1:**
-- MySQL mean: 50ms
-- PostgreSQL mean: 55ms
-- Ratio: 55/50 = 1.1 → **OK** (10% slower)
-
-**Example 2:**
-- MySQL mean: 20ms
-- PostgreSQL mean: 50ms
-- Ratio: 50/20 = 2.5 → **Problem** (150% slower)
 
 **Categories:**
 - **OK**: ratio ≤ 1.2 (up to 20% slower)
