@@ -540,6 +540,78 @@ For each query:
 3. Execute on PostgreSQL, record time and results
 4. Compare result sets (must match exactly)
 
+---
+
+## Syntax Validation
+
+Before measuring performance, OpenHalo translations must be validated to ensure they produce **syntactically correct PostgreSQL queries**.  
+This step prevents invalid queries from skewing performance metrics and helps identify translation issues.
+
+### Purpose
+
+To verify that:
+1. Each translated query is **syntactically valid** in PostgreSQL.  
+2. The translation preserves the **logical structure** of the original MySQL query.  
+3. All syntax or translation errors are **logged and categorized** for debugging.
+
+### Procedure
+
+For every query in the catalog:
+
+1. Execute on MySQL and record the baseline result.  
+2. Translate the query with OpenHalo.  
+3. **Validate the PostgreSQL syntax** of the translated query using `EXPLAIN`:
+   ```bash
+   psql --no-psqlrc --set=ON_ERROR_STOP=1 -c "EXPLAIN <translated_query>;"
+   ```
+   - If PostgreSQL returns a `syntax error` or `function does not exist`, mark this query as **Syntax Error**.
+   - Skip performance measurement for queries that fail validation.
+
+4. If syntax is valid, proceed with the normal performance test steps (execution, timing, result comparison).
+
+### Syntax error classification
+
+Each syntax failure should be categorized with a short error code:
+
+| Code | Type | Example |
+|------|------|----------|
+| S01 | Function mismatch | `DATE_FORMAT()` → not translated to `TO_CHAR()` |
+| S02 | Operator difference | `!=` vs `<>`, or `||` vs `CONCAT()` |
+| S03 | Keyword difference | MySQL-only syntax such as `LIMIT x,y`, `AUTO_INCREMENT` |
+| S04 | Identifier quoting | Backticks `` `column` `` vs `"column"` |
+| S05 | Unsupported feature | `ON DUPLICATE KEY UPDATE`, `REPLACE INTO`, etc. |
+
+### Syntax validation report
+
+Add a section in the final report:
+
+```
+=== OpenHalo Syntax Validation Report ===
+Total queries: 150
+Syntax OK: 147 (98%)
+Syntax Errors: 3 (2%)
+
+Error breakdown:
+  S01 Function mismatch: 2
+  S04 Identifier quoting: 1
+
+Example:
+Query: user_signup_stats
+MySQL: SELECT DATE_FORMAT(created_at, '%Y-%m-%d'), COUNT(*) FROM users GROUP BY 1;
+PGSQL: SELECT DATEFORMAT(created_at, 'YYYY-MM-DD'), COUNT(*) FROM users GROUP BY 1;
+Error: function dateformat(timestamp without time zone, unknown) does not exist
+```
+
+### Success criteria 
+
+A test run passes the syntax phase when:
+- ≥ 98% of translated queries are **syntactically valid** in PostgreSQL  
+- All syntax errors are **classified**
+
+Queries that fail validation are excluded from the performance and result comparison phase but must appear in the final report.
+
+---
+
 ## Calculating performance metrics
 
 After 10 runs, calculate:
