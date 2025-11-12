@@ -1,86 +1,83 @@
-# **Protocole de Tests**
+# **Test Protocol**
+## 1. Context and Objectives
+This protocol aims to evaluate the functional compatibility between **MySQL**, **OpenHalo** (which translates MySQL queries into PostgreSQL), and **native PostgreSQL**. The goal is to verify that:
+- MySQL queries, when executed via OpenHalo, produce identical or equivalent results to those obtained directly with PostgreSQL.
+- OpenHalo correctly handles MySQL-specific features (functions, syntax, data types) and translates them into valid PostgreSQL queries.
+- No data is corrupted or lost during translation or execution.
+This protocol focuses on functional validation, not performance (which will be addressed in Part 3).
 
-## 1. Contexte et Objectifs
-Ce protocole vise à évaluer la compatibilité fonctionnelle entre **MySQL**, **OpenHalo** (qui traduit les requêtes MySQL en PostgreSQL), et **PostgreSQL natif**. L’objectif est de vérifier que :
-- Les requêtes MySQL, lorsqu’elles sont exécutées via OpenHalo, produisent des résultats identiques ou équivalents à ceux obtenus directement avec PostgreSQL.
-- OpenHalo gère correctement les spécificités de MySQL (fonctions, syntaxe, types de données) et les traduit en requêtes PostgreSQL valides.
-- Aucune donnée n’est corrompue ou perdue lors de la traduction ou de l’exécution.
+## 2. Test Environment
+To ensure reliable testing, the environment must include:
+- Three database instances:
+  - **MySQL**: to execute the original queries.
+  - **OpenHalo**: to translate and execute MySQL queries in PostgreSQL.
+  - **Native PostgreSQL**: to compare the results obtained via OpenHalo with direct PostgreSQL execution.
+- Identical datasets across the three database management systems, including:
+  - Tables with relationships (primary/foreign keys, indexes, triggers).
+  - Specific data types: `ENUM`, `SET`, `JSON`, `BLOB`, etc.
+  - Realistic data (if provided by Clever Cloud) and synthetic data to cover edge cases.
+- Automation tools:
+  - Python scripts (using `mysql-connector`, `psycopg2`) to execute queries and compare results.
+  - Docker to isolate environments and ensure reproducibility.
 
-Ce protocole se concentre sur la validation fonctionnelle et non sur les performances (qui seront traitées dans la Partie 3).
+## 3. Query Categories to Test
+Queries must cover **all possible types of SQL operations**. Here is a **generic** and **exhaustive** list:
 
-## 2. Environnement de Test
-Pour garantir des tests fiables, l’environnement doit inclure :
-- Trois instances de bases de données :
-  - **MySQL** : pour exécuter les requêtes originales.
-  - **OpenHalo** : pour traduire et exécuter les requêtes MySQL en PostgreSQL.
-  - **PostgreSQL natif** : pour comparer les résultats obtenus via OpenHalo avec une exécution directe en PostgreSQL.
-- Jeux de données identiques sur les trois systèmes de gestion de base de données, incluant :
-  - Des tables avec des relations (clés primaires/étrangères, index, triggers).
-  - Des types de données spécifiques : `ENUM`, `SET`, `JSON`, `BLOB`, etc.
-  - Des données réalistes (si fournies par Clever Cloud) et des données artificielles pour couvrir les cas limites.
-- Outils d’automatisation :
-  - Scripts Python (avec `mysql-connector`, `psycopg2`) pour exécuter les requêtes et comparer les résultats.
-  - Docker pour isoler les environnements et garantir la reproductibilité.
+### 3.1. Selection Queries (SELECT)
+- Simple selection: `SELECT * FROM table WHERE condition;`
+- Selection with joins: `SELECT a.col1, b.col2 FROM table1 a JOIN table2 b ON a.id = b.table1_id WHERE condition;`
+  - Test: `INNER JOIN`, `LEFT JOIN`, `RIGHT JOIN`, `FULL JOIN` (if supported).
+- Selection with aggregates: `SELECT COUNT(*), AVG(column), SUM(column) FROM table GROUP BY column;`
+- Selection with subqueries: `SELECT * FROM table1 WHERE column IN (SELECT column FROM table2 WHERE condition);`
 
-## 3. Catégories de Requêtes à Tester
-Les requêtes doivent couvrir **tous les types d’opérations SQL** possibles. Voici une liste **générique** et **exhaustive** :
+### 3.2. Modification Queries (INSERT/UPDATE/DELETE)
+- Simple insertion: `INSERT INTO table (col1, col2) VALUES (value1, value2);`
+- Multiple insertion: `INSERT INTO table (col1, col2) VALUES (val1, val2), (val3, val4);`
+- Update: `UPDATE table SET col1 = value1 WHERE condition;`
+- Deletion: `DELETE FROM table WHERE condition;`
 
-### 3.1. Requêtes de Sélection (SELECT)
-- Sélection simple : `SELECT * FROM table WHERE condition;`
-- Sélection avec jointures : `SELECT a.col1, b.col2 FROM table1 a JOIN table2 b ON a.id = b.table1_id WHERE condition;`
-  - Tester : `INNER JOIN`, `LEFT JOIN`, `RIGHT JOIN`, `FULL JOIN` (si supporté).
-- Sélection avec agrégats : `SELECT COUNT(*), AVG(column), SUM(column) FROM table GROUP BY column;`
-- Sélection avec sous-requêtes : `SELECT * FROM table1 WHERE column IN (SELECT column FROM table2 WHERE condition);`
+### 3.3. Complex Queries
+- Transactions: `BEGIN; [queries] COMMIT;` or `ROLLBACK;`
+- CTEs (Common Table Expressions): `WITH cte_name AS (SELECT ...) SELECT * FROM cte_name;`
+- Window functions: `SELECT col1, ROW_NUMBER() OVER (PARTITION BY col2 ORDER BY col3) FROM table;`
+- Set operations: `SELECT col FROM table1 UNION/INTERSECT/EXCEPT SELECT col FROM table2;`
 
-### 3.2. Requêtes de Modification (INSERT/UPDATE/DELETE)
-- Insertion simple : `INSERT INTO table (col1, col2) VALUES (value1, value2);`
-- Insertion multiple : `INSERT INTO table (col1, col2) VALUES (val1, val2), (val3, val4);`
-- Mise à jour : `UPDATE table SET col1 = value1 WHERE condition;`
-- Suppression : `DELETE FROM table WHERE condition;`
+### 3.4. Error Handling
+- Invalid queries: `SELECT * FROM non_existent_table;`
+- Constraint violations: `INSERT INTO table (col_not_null) VALUES (NULL);`
 
-### 3.3. Requêtes Complexes
-- Transactions : `BEGIN; [requêtes] COMMIT;` ou `ROLLBACK;`
-- CTEs (Common Table Expressions) : `WITH cte_name AS (SELECT ...) SELECT * FROM cte_name;`
-- Fonctions fenêtrées : `SELECT col1, ROW_NUMBER() OVER (PARTITION BY col2 ORDER BY col3) FROM table;`
-- Opérations ensemblistes : `SELECT col FROM table1 UNION/INTERSECT/EXCEPT SELECT col FROM table2;`
+## 4. Validation Methodology
+### 4.1. Query Execution
+For each query in the catalog:
+1. Execute on MySQL and record the result (dataset returned + metadata such as row count).
+2. Translate with OpenHalo and execute on PostgreSQL.
+3. Execute directly on PostgreSQL (if the query is natively compatible).
+4. Compare the results between MySQL, OpenHalo, and native PostgreSQL.
 
-### 3.4. Gestion des Erreurs
-- Requêtes invalides : `SELECT * FROM non_existent_table;`
-- Violations de contraintes : `INSERT INTO table (col_not_null) VALUES (NULL);`
+### 4.2. Validation Criteria
+- Results must be identical:
+  - The dataset returned by OpenHalo must be strictly identical to that of native PostgreSQL.
+  - MySQL results must be logically equivalent (accounting for syntax differences, e.g., `DATE_FORMAT` vs `TO_CHAR`).
+- Error handling must be consistent:
+  - Error messages must be clear and consistent across database management systems.
+  - Constraint violations must be detected and reported in the same way.
 
-## 4. Méthodologie de Validation
+### 4.3. Discrepancy Documentation
+For each identified discrepancy, document:
+- The query in question (exact text).
+- The expected result (native PostgreSQL).
+- The obtained result (OpenHalo).
+- Analysis:
+  - Probable cause (e.g., incorrect translation of a MySQL function).
+  - Impact (e.g., missing data, calculation error).
+  - Proposed solution (e.g., rewrite the query, adjust OpenHalo configuration).
 
-### 4.1. Exécution des Requêtes
-Pour chaque requête du catalogue :
-1. Exécuter sur MySQL et enregistrer le résultat (jeu de données retourné + métadonnées comme le nombre de lignes).
-2. Traduire avec OpenHalo et exécuter sur PostgreSQL.
-3. Exécuter directement sur PostgreSQL (si la requête est compatible nativement).
-4. Comparer les résultats entre MySQL, OpenHalo, et PostgreSQL natif.
-
-### 4.2. Critères de Validation
-- Les résultats doivent être identiques :
-  - Le jeu de données retourné par OpenHalo doit être strictement identique à celui de PostgreSQL natif.
-  - Les résultats de MySQL doivent être logiquement équivalents (en tenant compte des différences de syntaxe, ex: `DATE_FORMAT` vs `TO_CHAR`).
-- La gestion des erreurs doit être cohérente :
-  - Les messages d’erreur doivent être clairs et cohérents entre les systèmes de gestion de base de données.
-  - Les violations de contraintes doivent être détectées et signalées de la même manière.
-
-### 4.3. Documentation des Écarts
-Pour chaque écart identifié, documenter :
-- La requête concernée (texte exact).
-- Le résultat attendu (PostgreSQL natif).
-- Le résultat obtenu (OpenHalo).
-- L'analyse :
-  - Cause probable (ex: traduction incorrecte d’une fonction MySQL).
-  - Impact (ex: données manquantes, erreur de calcul).
-  - Solution proposée (ex: réécrire la requête, ajuster la configuration d’OpenHalo).
-
-## 5. Livrables
-À la fin des tests, les livrables suivants doivent être fournis :
-- Un rapport de compatibilité :
-  - Tableau récapitulatif des requêtes testées (succès/échec).
-  - Liste des écarts avec analyses et solutions.
-- Un script d’automatisation (Python) :
-  - Exécute les requêtes sur les trois SGBD.
-  - Compare les résultats et génère un rapport.
-- Les jeux de données utilisés (fichiers SQL/CSV).
+## 5. Deliverables
+At the end of testing, the following deliverables must be provided:
+- A compatibility report:
+  - Summary table of tested queries (success/failure).
+  - List of discrepancies with analyses and solutions.
+- An automation script (Python):
+  - Executes queries on the three DBMS.
+  - Compares results and generates a report.
+- The datasets used (SQL/CSV files).
