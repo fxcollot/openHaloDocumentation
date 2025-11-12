@@ -1,8 +1,6 @@
 --
--- PostgreSQL database dump
+-- PostgreSQL portable database dump
 --
-
-\restrict iKZ1HX9EiPD9AOuZBKL3xi8HGeL9mA62xI0yerOJxZt8JwkJ5Lex7el5dJ1UtIN
 
 -- Dumped from database version 14.19 (Homebrew)
 -- Dumped by pg_dump version 14.19 (Homebrew)
@@ -19,14 +17,13 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 SET default_tablespace = '';
-
 SET default_table_access_method = heap;
 
 --
--- Name: name_basics; Type: TABLE; Schema: public; Owner: montadhar
+-- Name: name_basics; Type: TABLE; Schema: public;
 --
 
-CREATE TABLE public.name_basics (
+CREATE TABLE IF NOT EXISTS public.name_basics (
     nconst character varying(20) NOT NULL,
     primaryname character varying(255) NOT NULL,
     birthyear integer,
@@ -35,11 +32,8 @@ CREATE TABLE public.name_basics (
     knownfortitles character varying(255)
 );
 
-
-ALTER TABLE public.name_basics OWNER TO montadhar;
-
 --
--- Data for Name: name_basics; Type: TABLE DATA; Schema: public; Owner: montadhar
+-- Data for Name: name_basics; Type: TABLE DATA; Schema: public;
 --
 
 COPY public.name_basics (nconst, primaryname, birthyear, deathyear, primaryprofession, knownfortitles) FROM stdin;

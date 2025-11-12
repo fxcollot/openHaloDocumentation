@@ -1,0 +1,26 @@
+Faire le restarting OpenHalo
+Lancer un serveur
+Mettre fichier name_basics_postgres.sql dans : /home/halo/ohdata
+Lancer PSQL : psql -p 5432
+Créer une base de données vide : CREATE DATABASE people;
+Quitter PSQL : \q
+On importe le fichier : psql -d people -h 127.0.0.1 -p 5432 -f /home/halo/ohdata/name_basics_postgres.sql
+
+Pour vérifier les données :
+Se connecter à la base de données people : psql -d people -h 127.0.0.1 -p 5432
+Ensuite dans le shell :
+\dt (pour lister les tables)
+SELECT * FROM name_basics LIMIT 5; (pour voir les 5 premières lignes de la table name_basics)
+Quitter le shell et retourner dans l'utilisateur halo : \q
+
+Installer psycopg2 : pip install psycopg2-binary
+
+Se connecter avec le client MySQL : mysql -P 3306 -h 127.0.0.1 
+Créer la même base pour les relier : CREATE DATABASE people;
+USE people;
+quitter le client MySQL : quit;
+mysql -P 3306 -h 127.0.0.1 -D people < /home/halo/ohdata/name_basics_mysql.sql 
+Retourner dans la base people dans MySQL : mysql -P 3306 -h 127.0.0.1 -D people
+Lister les tables : SHOW TABLES;
+Voir les 10 premiers noms : SELECT nconst, primaryname FROM name_basics LIMIT 10;
+Vérifier combien de ligne il y a : SELECT COUNT(*) FROM name_basics;
