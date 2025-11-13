@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: mysecret
+      MYSQL_DATABASE: openhalo
+      MYSQL_USER: halo
+      MYSQL_PASSWORD: halopass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: mysecret
+      POSTGRES_DB: openhalo
+      POSTGRES_USER: halo
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  openhalo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openhalo
+    restart: unless-stopped
+    environment:
+      HALO_HOME: /opt/openhalo/1.0
+      PGHOST: postgres
+      PGUSER: halo
+      PGPASSWORD: mysecret
+      MYSQL_HOST: mariadb
+      MYSQL_USER: halo
+      MYSQL_PASSWORD: halopass
+    depends_on:
+      - mariadb
+      - postgres
+    ports:
+      - "5432:5432" # pour exposer PostgreSQL via OpenHalo si nécessaire
+      - "3306:3306" # pour exposer MariaDB via OpenHalo si nécessaire
+    volumes:
+      - openhalo_data:/home/halo/ohdata
+
+volumes:
+  mariadb_data:
+  pg_data:
+  openhalo_data:
