@@ -64,6 +64,7 @@ La base MySQL testdb est automatiquement mappée à un schéma PostgreSQL appel�
 La table users que tu viens de créer existe maintenant dans ce schéma PostgreSQL.
 
 Même si tu es connecté via MySQL, les données sont réellement stockées dans PostgreSQL.
+
 ---
 
 ## Vérifier les données dans PostgreSQL
@@ -113,6 +114,7 @@ SELECT * FROM users;
 ```
 
 users sera trouvé directement comme si tu étais dans MySQL.
+
 ---
 ## Résumé du fonctionnement
 
