@@ -1,19 +1,22 @@
 #!/bin/bash
 set -e
 
-# Initialiser la base PostgreSQL si elle n'existe pas encore
-if [ ! -d "$PGDATA/base" ]; then
-  echo "Initializing PostgreSQL data directory..."
-  initdb -D "$PGDATA"
-  echo "listen_addresses='*'" >> "$PGDATA/postgresql.conf"
-  echo "port=5432" >> "$PGDATA/postgresql.conf"
-  echo "database_compat_mode='mysql'" >> "$PGDATA/postgresql.conf"
-  echo "mysql.listener_on=true" >> "$PGDATA/postgresql.conf"
-  echo "mysql.port=3306" >> "$PGDATA/postgresql.conf"
+# Démarrer PostgreSQL s’il n’est pas déjà lancé
+if [ ! -s "$PGDATA/PG_VERSION" ]; then
+    echo "Initialisation de la base de données..."
+    initdb -D "$PGDATA"
 fi
 
-# Démarrer PostgreSQL au foreground
-pg_ctl -D "$PGDATA" -o "-c config_file=$PGDATA/postgresql.conf" start
+echo "Démarrage du serveur PostgreSQL..."
+pg_ctl -D "$PGDATA" -l "$PGDATA/logfile" start
 
-# Démarrer un shell ou commande passée en argument
-exec "$@"
+# Attendre que le serveur soit prêt
+until pg_isready -h localhost -p 5432 -U halo; do
+  echo "En attente du démarrage de PostgreSQL..."
+  sleep 2
+done
+
+echo "PostgreSQL est prêt."
+
+# Laisser le conteneur actif (sinon il s'arrête)
+tail -f "$PGDATA/logfile"
