@@ -28,7 +28,7 @@ SHOW TABLES;  -- devrait être vide
 ```
 
 ---
-##2️ Créer une table et insérer des données via MySQL
+## Créer une table et insérer des données via MySQL
 
 Créer une table users :
 ```sql
@@ -57,7 +57,7 @@ Sélectionner les données pour vérifier :
 SELECT * FROM users;
 ```
 --- 
-##3️ Comprendre le mapping OpenHalo → PostgreSQL
+## Comprendre le mapping OpenHalo → PostgreSQL
 
 La base MySQL testdb est automatiquement mappée à un schéma PostgreSQL appelé testdb.
 
@@ -66,7 +66,7 @@ La table users que tu viens de créer existe maintenant dans ce schéma PostgreS
 Même si tu es connecté via MySQL, les données sont réellement stockées dans PostgreSQL.
 ---
 
-##4️ Vérifier les données dans PostgreSQL
+## Vérifier les données dans PostgreSQL
 
 Se connecter à PostgreSQL (port 5432) :
 ```bash
@@ -103,7 +103,7 @@ Résultat attendu :
 
 ---
 
-##5️ Astuce : éviter de préfixer le schéma
+## Astuce : éviter de préfixer le schéma
 
 Pour travailler directement sur le schéma sans le préfixer à chaque requête :
 
