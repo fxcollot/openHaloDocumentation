@@ -1,6 +1,6 @@
 FROM quay.io/centos/centos:stream9 AS builder
 
-ENV DEBIAN_FRONTEND=noninteractive
+#ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Paris
 ENV HALO_HOME=/opt/openhalo/1.0
 
@@ -30,19 +30,19 @@ RUN ./configure --prefix=$HALO_HOME --enable-debug --with-icu CFLAGS=-O2 && \
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 # Variables d'environnement
-ENV DEBIAN_FRONTEND=noninteractive
+#ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Paris
 ENV HALO_HOME=/opt/openhalo/1.0
 ENV PGDATA=/home/halo/ohdata
 ENV PATH=$HALO_HOME/bin:$PATH
 ENV LD_LIBRARY_PATH=
-ENV LD_LIBRARY_PATH=$HALO_HOME/lib:${LD_LIBRARY_PATH:-}
+ENV LD_LIBRARY_PATH=$HALO_HOME/lib:${LD_LIBRARY_PATH}
 ENV PGHOST=/var/run/openhalo
 
 # Installer les dépendances runtime seulement
 RUN microdnf install -y \
     postgresql \
-    mysql \
+    mariadb-connector-c \
     libicu \
     zlib \
     readline \
@@ -70,6 +70,6 @@ USER halo
 WORKDIR /home/halo
 
 # Exposer les ports PostgreSQL (5432) et MySQL-compat (3306)
-EXPOSE 5432 3306
+#EXPOSE 5432 3306
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
