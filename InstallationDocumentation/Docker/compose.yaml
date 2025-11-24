@@ -12,7 +12,7 @@ services:
       MYSQL_USER: halo
       MYSQL_PASSWORD: halopass
     ports:
-      - "3307:3306"
+      - "3306:3306"
     volumes:
       - mysqldb_data:/var/lib/mysql
 
@@ -25,7 +25,7 @@ services:
       POSTGRES_DB: openhalo
       POSTGRES_USER: halo
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
 
@@ -40,7 +40,7 @@ services:
       PGHOST: postgres
       PGUSER: halo
       PGPASSWORD: mysecret
-      MYSQL_HOST: mariadb
+      MYSQL_HOST: mysqldb  
       MYSQL_USER: halo
       MYSQL_PASSWORD: halopass
     # depends_on:
