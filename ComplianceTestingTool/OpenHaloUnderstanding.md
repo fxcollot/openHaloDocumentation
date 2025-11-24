@@ -9,16 +9,38 @@ The full workflow is described below.
 
 ## Creating a MySQL Database Through OpenHalo
 
-Connect using a MySQL client (port 3306):
+Connect using a MySQL root : 
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u halo -p
+mysql -u root -p
 ```
+Enter the password predetermined, here : mysecret
+
 
 ## Create a database:
 
 ```sql
 CREATE DATABASE testdb;
+```
+Grant all access to client 'halo':
+
+```sql
+GRANT ALL PRIVILEGES ON testdb.* TO 'halo'@'%';
+FLUSH PRIVILEGES;
+```
+Exit the root to connect to 'halo':
+
+```sql
+exit;
+```
+
+Connect using a MySQL client (port 3306):
+
+```bash
+mysql -h mysqldb -u halo -p openhalo
+```
+
+```sql
 USE testdb;
 ```
 
