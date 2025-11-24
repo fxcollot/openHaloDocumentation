@@ -40,6 +40,7 @@ Connect using a MySQL client (port 3306):
 mysql -h mysqldb -u halo -p openhalo
 ```
 
+## Use the database:
 ```sql
 USE testdb;
 ```
