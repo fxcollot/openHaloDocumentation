@@ -42,6 +42,7 @@ ENV PGHOST=/var/run/openhalo
 # Installer les dépendances runtime seulement
 RUN microdnf install -y \
     postgresql \
+    mysql \
     mariadb-connector-c \
     libicu \
     zlib \
@@ -51,6 +52,7 @@ RUN microdnf install -y \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
     echo $TZ > /etc/timezone && \
     microdnf clean all
+
 
 # Copier OpenHalo compilé depuis le stage builder
 COPY --from=builder $HALO_HOME $HALO_HOME
