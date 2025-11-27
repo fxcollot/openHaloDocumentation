@@ -1,6 +1,6 @@
 """
 OpenHalo Performance Testing Pipeline
-Tests queries using OpenHalo (→ PostgreSQL)
+Tests queries using OpenHalo
 """
 
 import time
