@@ -42,7 +42,6 @@ ENV PGHOST=/var/run/openhalo
 # Installer les dépendances runtime seulement
 RUN microdnf install -y \
     postgresql \
-    mysql \
     mariadb-connector-c \
     libicu \
     zlib \
