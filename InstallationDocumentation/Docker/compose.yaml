@@ -40,15 +40,14 @@ services:
       PGHOST: postgres
       PGUSER: halo
       PGPASSWORD: mysecret
-      MYSQL_HOST: mysqldb  
+      MYSQL_HOST: mysqldb
       MYSQL_USER: halo
       MYSQL_PASSWORD: halopass
-    # depends_on:
-    #   - mysqldb
-    #   - postgres
+    depends_on:
+      - mysqldb
+      - postgres
     ports:
-      - "5434:5432" # pour exposer PostgreSQL via OpenHalo si nécessaire
-      - "3308:3306" # pour exposer MariaDB via OpenHalo si nécessaire
+      - "5434:5432"
     volumes:
       - openhalo_data:/home/halo/ohdata
 
