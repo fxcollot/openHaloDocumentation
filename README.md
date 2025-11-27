@@ -27,7 +27,6 @@ The project was structured into four distinct phases, each contributing a vital 
 This phase focused on creating clear, comprehensive instructions for setting up OpenHalo in various development environments, ensuring a low barrier to entry for new users and developers.
 
 * **Linux Environment Installation**: Detailed step-by-step guide for native installation on Linux systems.
-
 * **Dockerized Setup**: Creation and documentation of a reproducible setup using **Docker**, simplifying environment management and dependency handling. (Reference: HowToUseOpenHalo.md, docker-entrypoint.sh)
 
 ### 2. Automated Testing Framework Development
@@ -61,7 +60,7 @@ For detailed installation instructions, including both native and Docker setups,
 
 ```bash
 # Clone the repository
-git clone [[repository-link]](https://github.com/fxcollot/openHaloDocumentation.git)
+git clone https://github.com/fxcollot/openHaloDocumentation.git
 cd openHaloDocumentation
 ```
 
