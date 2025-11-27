@@ -155,6 +155,10 @@ CREATE DATABASE mydb;
 
 Exit the MySQL prompt if needed, then run:
 ```bash
+docker cp ~/Documents/PCE/openhalo/name_basics_mysql.sql openhalo:/home/halo/name_basics_mysql.sql
+```
+
+```bash
 mysql -h 127.0.0.1 -P 3306 -u halo -p mydb < /path/to/file.sql
 ```
 
