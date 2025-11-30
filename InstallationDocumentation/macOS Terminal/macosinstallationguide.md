@@ -166,6 +166,7 @@ Edit your `~/.zshrc` file (macOS uses Zsh by default):
 ```bash
 nano ~/.zshrc
 ```
+
 Scroll to the bottom and add these lines:
 ```bash
 # OpenHalo environment
@@ -178,7 +179,13 @@ export PGHOST=/tmp
 # For Apple Silicon - adjust for Intel Macs if needed
 export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
 
-#Your file should now look like this
+# Convenience alias
+alias pg_ctl='$HALO_HOME/bin/pg_ctl -D $HOME/ohdata'
+```
+
+**Your file should now look like this:**
+```bash
+
 export PATH="/usr/local/opt/openjdk@25/bin:$PATH"
 export PATH="/usr/local/opt/openjdk@25/bin:$PATH"
 export JAVA_HOME=$(/usr/libexec/java_home -v 25)
@@ -193,6 +200,8 @@ export DYLD_LIBRARY_PATH=$HALO_HOME/lib:$DYLD_LIBRARY_PATH
 export PGHOST=/tmp
 
 alias pg_ctl='$HALO_HOME/bin/pg_ctl -D $HOME/ohdata'
+```
+
 
 
 # Convenience alias
