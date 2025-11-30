@@ -248,13 +248,13 @@ Save (`Ctrl+O`, `Enter`) and exit (`Ctrl+X`).
 ```bash
 nano $PGDATA/pg_hba.conf
 ```
-Scroll to the bottom and add this line:
+Scroll to the ipv4 section and and add this line:
 ```text
 host    all             all             0.0.0.0/0               scram-sha-256
 ```
-> **Note:** The file already has `host all all 127.0.0.1/32 trust` for local connections.
+> **Note:** The file already has `host all all 127.0.0.1/32 trust` for local connections. Add that line under it.
 
-Save and exit.
+Save (`Ctrl+O`, `Enter`) and exit (`Ctrl+X`).
 
 ---
 
