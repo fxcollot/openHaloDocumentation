@@ -5,7 +5,6 @@ A complete guide to install and configure OpenHalo on macOS - a PostgreSQL fork 
 ---
 
 ## Table of Contents
-- [What is OpenHalo?](#what-is-openhalo)
 - [Prerequisites](#prerequisites)
 - [Pre-Installation Checklist](#pre-installation-checklist)
 - [Downloading and Compiling OpenHalo](#downloading-and-compiling-openhalo)
@@ -21,19 +20,6 @@ A complete guide to install and configure OpenHalo on macOS - a PostgreSQL fork 
 - [Updating OpenHalo](#updating-openhalo)
 - [Troubleshooting (Edge Cases)](#troubleshooting-edge-cases)
 - [Key Differences from Linux Installation](#key-differences-from-linux-installation)
-
----
-
-## What is OpenHalo?
-OpenHalo is a PostgreSQL fork that provides **MySQL wire protocol compatibility**. This means:
-
-* ✅ Connect using MySQL clients and drivers
-* ✅ Run MySQL SQL queries on PostgreSQL data
-* ✅ Migrate MySQL applications with minimal code changes
-* ✅ Access the same data via both PostgreSQL (5432) and MySQL (3306) protocols
-* ✅ Based on PostgreSQL 14.10 with MySQL 5.7.32-log compatibility
-
-**Perfect for:** Migrating MySQL applications to PostgreSQL without rewriting code!
 
 ---
 
