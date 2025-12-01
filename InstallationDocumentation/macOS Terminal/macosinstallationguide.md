@@ -522,4 +522,3 @@ CREATE DATABASE halo0root;
 * **PostgreSQL Documentation:** https://www.postgresql.org/docs/
 * **Report issues:** halo-bugs@halodbtech.com
 
-**Installation complete!** 🚀 You now have OpenHalo running with dual PostgreSQL and MySQL protocol support on macOS.
