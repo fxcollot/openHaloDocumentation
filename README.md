@@ -26,7 +26,7 @@ The project was structured into four distinct phases, each contributing a vital 
 
 This phase focused on creating clear, comprehensive instructions for setting up OpenHalo in various development environments, ensuring a low barrier to entry for new users and developers.
 
-* **Linux Environment Installation**: Detailed step-by-step guide for native installation on Linux systems.
+* **Linux and MacOs Environment Installation**: Detailed step-by-step guide for native installation on Linux and MacOs systems.
 * **Dockerized Setup**: Creation and documentation of a reproducible setup using **Docker**, simplifying environment management and dependency handling. (Reference: HowToUseOpenHalo.md, docker-entrypoint.sh)
 
 ### 2. Automated Testing Framework Development
@@ -49,7 +49,7 @@ Beyond mere migration, we rigorously tested the performance impact of the migrat
 
 ### Prerequisites
 
-* A Linux environment (recommended)
+* A Linux environment (recommended) or MacOs environment
 * Docker (for the containerized setup)
 * Python 3.x
 * Access to MySQL and PostgreSQL instances
