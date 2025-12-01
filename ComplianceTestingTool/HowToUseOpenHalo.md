@@ -153,10 +153,17 @@ Ensure that the target database exists:
 CREATE DATABASE mydb;
 ```
 
+Add a volume in the 'compose.yaml':
+```
+- /pathtofile on pc/name_basics_mysql.sql:/home/halo/ohdata/name_basics_mysql.sql:ro
+````
+Link the file on your computer to a virtual path on docker
+ro = read only
+
 Exit the MySQL prompt if needed, then run:
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u halo -p mydb < /path/to/file.sql
+mysql -h mysqldb -u halo -p -p mydb < /path/to/file.sql
 ```
 
 OpenHalo will process the SQL file exactly as a MySQL server would, translating supported MySQL constructs into PostgreSQL.
