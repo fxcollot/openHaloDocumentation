@@ -37,7 +37,7 @@ exit;
 Connect using a MySQL client (port 3306):
 
 ```bash
-mysql -h mysqldb -u halo -p openhalo
+mysql -h mysqldb -u halo -p
 ```
 
 ## Use the database:
