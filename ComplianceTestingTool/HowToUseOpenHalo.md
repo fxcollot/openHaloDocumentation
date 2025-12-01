@@ -153,7 +153,7 @@ Ensure that the target database exists:
 CREATE DATABASE mydb;
 ```
 
-Add a volume in the 'compose.yaml':
+Add a volume in the 'compose.yaml' in the part 'volumes' of openhalo:
 ```
 - /pathtofile on pc/name_basics_mysql.sql:/home/halo/ohdata/name_basics_mysql.sql:ro
 ````
