@@ -204,15 +204,6 @@ alias pg_ctl='$HALO_HOME/bin/pg_ctl -D $HOME/ohdata'
 
 
 
-# Convenience alias
-alias pg_ctl='$HALO_HOME/bin/pg_ctl -D $HOME/ohdata'
-```
-
-**For Intel Macs:** Change the PKG_CONFIG_PATH line to:
-```bash
-export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
-```
-
 Save with `Ctrl+O`, press `Enter`, then exit with `Ctrl+X`.
 Apply the changes:
 ```bash
