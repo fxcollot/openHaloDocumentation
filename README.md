@@ -14,7 +14,7 @@ Our team developed and implemented a series of crucial components to ensure reli
 * **Database Benchmarking**: Scripts and protocols for rigorous performance analysis and comparison.
 * **Comprehensive Technical Documentation**: Detailed guides for installation, usage, and testing.
 
-| Team Leads |	Institution |
+| Team Leaders |	Institution |
 | ---- | ---- |
 | Nélia Fedele, Sei Bayle, François-Xavier Collot, Juliette Faurie, Hugo Bentata, Montadhar Ettaieb, Houda Daouairi	| IMT Atlantique |
 
