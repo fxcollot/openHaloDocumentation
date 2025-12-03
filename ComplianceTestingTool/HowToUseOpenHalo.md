@@ -9,7 +9,7 @@ The full workflow is described below.
 
 ## Creating a MySQL Database Through OpenHalo
 
-Connect using a MySQL root : 
+Connect using a MySQL root if halo does not have enough access : 
 
 ```bash
 mysql -u root -p

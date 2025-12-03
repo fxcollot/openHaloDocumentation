@@ -10,7 +10,7 @@ services:
       MYSQL_USER: halo
       MYSQL_PASSWORD: halopass
     ports:
-      - "3306:3306"
+      - "3308:3306"
     volumes:
       - mysqldb_data:/var/lib/mysql
 
