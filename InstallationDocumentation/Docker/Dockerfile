@@ -43,6 +43,7 @@ ENV PGHOST=/var/run/openhalo
 RUN microdnf install -y \
     postgresql \
     mariadb-connector-c \
+    mariadb \
     libicu \
     zlib \
     readline \
