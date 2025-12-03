@@ -1449,7 +1449,6 @@ ERROR 1478 (HY000): syntax error at or near "JOIN"
 This uses MySQL’s multi-table `DELETE ... FROM ... JOIN ...` syntax. PostgreSQL expresses the same operation using `DELETE ... FROM ... USING ...`, and OpenHalo does not translate the MySQL form into the PostgreSQL equivalent, so parsing fails when the `JOIN` keyword appears in a DELETE context.
 
 **MySQL 5.7.32 Queries**  
-To avoid modifying the main table, the delete was tested against a small copy so we ran the following queries:
 
 USE imdb;
 
@@ -1488,6 +1487,7 @@ LIMIT 5;
 <img width="510" height="165" alt="Screenshot 2025-12-03 at 15 27 13" src="https://github.com/user-attachments/assets/51e411c0-5ded-4329-8b95-6d2d680b6019" />
 
 **Note:**  
+To avoid modifying the main table, the delete was tested against a small copy which explains the extra lines in the query.
 
 In this particular data slice there were no rows with `birthyear < 1800`, so the DELETE affected 0 rows, but the statement parsed and executed successfully, confirming that the multi-table DELETE syntax itself is valid and supported in MySQL 5.7.32.
 
