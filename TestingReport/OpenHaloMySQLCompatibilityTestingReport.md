@@ -1497,14 +1497,6 @@ Multi-table `DELETE ... FROM ... JOIN ...` is supported in MySQL 5.7.32.
 
 OpenHalo does not currently support this MySQL DELETE+JOIN syntax via the MySQL protocol.
 
-
-
-**Verdict:**  
-
-Works in MySQL 5.7.32; 
-
-Fails in OpenHalo due to unsupported multi-table DELETE syntax.
-
 ### 3) MySQL explicit index hints
 
 **Query:**
