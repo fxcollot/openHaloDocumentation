@@ -1389,7 +1389,8 @@ RECOMMEND films SIMILAR TO 'Inception';
 
 ## Problematic Queries
 
-This section documents MySQL features that failed when executed against OpenHalo via the MySQL protocol, and confirms that each feature is officially supported in MySQL 5.7.32 according to the MySQL 5.7 Reference Manual.
+This section documents MySQL features that failed when executed against OpenHalo via the MySQL protocol, and confirms that each feature is officially supported in MySQL 5.7.32 by running the same queries using native MySQL 5.7.32. We do this because OpenHalo explicitly targets MySQL 5.7 wire protocol and SQL dialect compatibility; this ensures that any discrepancies observed in this report are due to OpenHalo’s implementation limits rather than missing or deprecated features in older MySQL versions.
+If queries are slightly changed for whatever reason, it will be mentioned under the **MySQL 5.7.32 Queries**, and explained in the **Notes** sections of each problematic query.
 
 ---
 
@@ -1398,9 +1399,6 @@ This section documents MySQL features that failed when executed against OpenHalo
 **Queries:**
 SELECT JSON_EXTRACT('{"a": 1}', '$.a');
 SELECT JSON_SET('{"a": 1}', '$.a', 2);
-SELECT JSON_ARRAYAGG(primaryname)
-FROM public.name_basics
-LIMIT 3;
 
 **OpenHalo Result:**
 ERROR 32900 (HY000): function json_extract(unknown, unknown) does not exist
@@ -1408,10 +1406,15 @@ ERROR 32900 (HY000): function json_extract(unknown, unknown) does not exist
 **Explanation:**  
 MySQL exposes a native JSON type and a family of JSON functions such as `JSON_EXTRACT`, `JSON_SET`, and the aggregate `JSON_ARRAYAGG`. PostgreSQL provides JSON and JSONB types but uses different operators and function names, and OpenHalo’s MySQL compatibility layer does not rewrite these MySQL-specific JSON calls into PostgreSQL equivalents, so they error out at function resolution time.
 
-**MySQL 5.7 Reference:**  
-The MySQL 5.7 manual describes native JSON support introduced in 5.7, including functions like `JSON_EXTRACT()` and `JSON_SET()`, and notes that aggregate JSON functions such as `JSON_ARRAYAGG()` are available from 5.7.22 onward. [web:59][web:61]
+**MySQL 5.7.32 Result:**  
+<img width="329" height="108" alt="Screenshot 2025-12-03 at 15 18 18" src="https://github.com/user-attachments/assets/7527ada7-8cd0-4688-8159-4ef69ba5e4a2" />
+<img width="327" height="109" alt="Screenshot 2025-12-03 at 15 18 28" src="https://github.com/user-attachments/assets/5ca80c14-9d1e-4ffa-ab0a-f3211b1290cb" />
 
-**Verdict:** ✅ Works in MySQL 5.7.32; fails in OpenHalo due to missing JSON function translation.
+
+
+**Verdict:** 
+Works in MySQL 5.7.32; 
+fails in OpenHalo due to missing JSON function translation. 
 
 ---
 
@@ -1430,21 +1433,62 @@ ERROR 1478 (HY000): syntax error at or near "JOIN"
 **Explanation:**  
 This uses MySQL’s multi-table `DELETE ... FROM ... JOIN ...` syntax. PostgreSQL expresses the same operation using `DELETE ... FROM ... USING ...`, and OpenHalo does not translate the MySQL form into the PostgreSQL equivalent, so parsing fails when the `JOIN` keyword appears in a DELETE context.
 
-**MySQL 5.7 Reference:**  
-The MySQL 5.7 reference manual documents multi-table DELETE statements, including forms that delete from one table while joining to others in the WHERE clause. [web:58]
+**MySQL 5.7.32 Queries**  
+To avoid modifying the main table, the delete was tested against a small copy so we ran the following queries:
+USE imdb;
 
-**Verdict:** ✅ Works in MySQL 5.7.32; fails in OpenHalo due to unsupported multi-table DELETE syntax.
+CREATE TABLE nb_test AS
+SELECT *
+FROM name_basics
+LIMIT 10;
 
+DELETE nb
+FROM nb_test nb
+JOIN nb_test nb2
+ON nb.nconst = nb2.nconst
+WHERE nb.birthyear < 1800;
+
+SELECT COUNT(*) AS remaining_rows FROM nb_test;
+
+SELECT nconst, birthyear
+FROM nb_test
+ORDER BY birthyear
+LIMIT 5;
+**MySQL 5.7.32 Results**
+Query OK, 0 rows affected (0.01 sec)
+<img width="408" height="118" alt="Screenshot 2025-12-03 at 15 27 08" src="https://github.com/user-attachments/assets/498e4a67-42fe-4564-8841-e47371a9e2a2" />
+<img width="510" height="165" alt="Screenshot 2025-12-03 at 15 27 13" src="https://github.com/user-attachments/assets/51e411c0-5ded-4329-8b95-6d2d680b6019" />
+**Note:**  
+In this particular data slice there were no rows with `birthyear < 1800`, so the DELETE affected 0 rows, but the statement parsed and executed successfully, confirming that the multi-table DELETE syntax itself is valid and supported in MySQL 5.7.32. [web:58]
+
+**Verdict:**  
+Multi-table `DELETE ... FROM ... JOIN ...` is supported in MySQL 5.7.32. 
+OpenHalo does not currently support this MySQL DELETE+JOIN syntax via the MySQL protocol.
+
+
+
+**Verdict:**  Works in MySQL 5.7.32; 
+fails in OpenHalo due to unsupported multi-table DELETE syntax.
+
+### 3) MySQL explicit index hints
+
+**Query:**
+SELECT *
+FROM public.name_basics FORCE INDEX (PRIMARY)
+WHERE birthyear < 1900
+LIMIT 5;
 **OpenHalo Result:**
 ERROR 1478 (HY000): syntax error at or near "PRIMARY"
 
 **Explanation:**  
 `FORCE INDEX (PRIMARY)` is a MySQL optimizer hint instructing the engine to prefer a particular index. PostgreSQL does not support index hints in this form, and OpenHalo’s MySQL layer does not strip or reinterpret the hint, so the parser encounters `PRIMARY` in an invalid position and raises an error.
 
-**MySQL 5.7 Reference:**  
-The 5.7 manual documents index hints, including `USE INDEX`, `IGNORE INDEX`, and `FORCE INDEX`, as part of the SELECT syntax that influences index selection. [web:58]
+**MySQL 5.7 Results:**  
+<img width="917" height="201" alt="Screenshot 2025-12-03 at 15 35 07" src="https://github.com/user-attachments/assets/91e7f688-3d71-4c0e-8c15-767437b7ae9a" />
 
-**Verdict:** ✅ Works in MySQL 5.7.32; fails in OpenHalo because index hints are not handled.
+**Verdict:**  
+`FORCE INDEX (PRIMARY)` is supported in MySQL 5.7.32. [web:58]  
+ OpenHalo does not support MySQL index hints via the MySQL protocol.
 
 
 ---
@@ -1453,14 +1497,16 @@ The 5.7 manual documents index hints, including `USE INDEX`, `IGNORE INDEX`, and
 
 **Query:**
 CREATE TABLE part_test (
-id INT PRIMARY KEY,
-created_at DATE
+  id INT,
+  created_at DATE,
+  PRIMARY KEY (id, created_at)
 )
 PARTITION BY RANGE (YEAR(created_at)) (
-PARTITION p0 VALUES LESS THAN (2000),
-PARTITION p1 VALUES LESS THAN (2010),
-PARTITION pmax VALUES LESS THAN MAXVALUE
+  PARTITION p0 VALUES LESS THAN (2000),
+  PARTITION p1 VALUES LESS THAN (2010),
+  PARTITION pmax VALUES LESS THAN MAXVALUE
 );
+
 
 **OpenHalo Result:**
 ERROR 1478 (HY000): syntax error at or near "("
@@ -1468,10 +1514,12 @@ ERROR 1478 (HY000): syntax error at or near "("
 **Explanation:**  
 This uses MySQL’s table partitioning DDL with `PARTITION BY RANGE (YEAR(created_at))`. PostgreSQL has its own partitioning model and syntax on `CREATE TABLE`, and OpenHalo does not attempt to transform MySQL partition clauses into native PostgreSQL partition definitions. As a result, parsing fails immediately after the `PARTITION BY RANGE` clause.
 
-**MySQL 5.7 Reference:**  
-The partitioning section of the 5.7 manual describes RANGE partitioning, including examples using expressions such as `YEAR(hired)` and multiple `PARTITION ... VALUES LESS THAN (...)` clauses. [web:62][web:65]
+**MySQL 5.7 Results:**  
+<img width="386" height="173" alt="Screenshot 2025-12-03 at 15 48 18" src="https://github.com/user-attachments/assets/4f6e5e9c-eb14-47e3-a724-165b4ee81f79" />
 
-**Verdict:** ✅ Works in MySQL 5.7.32; fails in OpenHalo because MySQL partition DDL is not translated.
+**Verdict:** 
+Works in MySQL 5.7.32 
+Fails in OpenHalo because MySQL partition DDL is not translated.
 
 ---
 
@@ -1493,14 +1541,36 @@ DELIMITER ;
 CALL get_actors();
 
 **OpenHalo Result:**
-
+ERROR 1478 (HY000): syntax error at or near "SELECT"
 **Explanation:**  
 MySQL stored procedures use a statement-based language with `CREATE PROCEDURE`, `BEGIN ... END` blocks, and procedure-level control flow. PostgreSQL uses PL/pgSQL functions with different syntax and execution model. OpenHalo’s compatibility layer does not rewrite MySQL stored procedure definitions into PostgreSQL functions, so the body of the procedure fails to parse in this context.
 
-**MySQL 5.7 Reference:**  
-The 5.7 reference manual documents stored routines (procedures and functions) and provides statements such as `SHOW PROCEDURE STATUS` that list existing stored procedures, which confirms that stored procedures are a first-class feature in MySQL 5.7. [web:58]
+**MySQL 5.7.32 Queries:**  
+USE imdb;
 
-**Verdict:** ✅ Works in MySQL 5.7.32; fails in OpenHalo because stored procedure DDL is not supported.
+DELIMITER $$
+
+CREATE PROCEDURE get_actors()
+BEGIN
+SELECT *
+FROM name_basics
+WHERE primaryprofession LIKE '%actor%'
+LIMIT 5;
+END$$
+
+DELIMITER ;
+
+CALL get_actors();
+
+**MySQL 5.7.32 Results:** 
+<img width="387" height="152" alt="Screenshot 2025-12-03 at 15 53 15" src="https://github.com/user-attachments/assets/7e3d58c1-1925-4479-8dde-be5a7867fb86" />
+<img width="931" height="217" alt="Screenshot 2025-12-03 at 15 53 21" src="https://github.com/user-attachments/assets/95c0a1ee-bf52-4f2c-b4e4-5c13fe17de75" />
+**Notes**
+On native MySQL 5.7.32 the table is name_basics in the imdb database (no public. schema). On OpenHalo the same data is exposed as public.name_basics because it runs on PostgreSQL. This difference does not affect stored procedure support; the procedure body compiles and executes correctly on MySQL 5.7.32 once the table name is adjusted.
+**Verdict:**  
+Works in MySQL 5.7.32; 
+fails in OpenHalo because stored procedure DDL is not supported.
+
 
 ---
 
@@ -1522,10 +1592,15 @@ ERROR 1478 (HY000): syntax error at or near "AGAINST"
 **Explanation:**  
 OpenHalo accepts the `CREATE FULLTEXT INDEX` DDL syntax and maps it to a PostgreSQL index type, but the MySQL query form `MATCH(...) AGAINST(...)` is not recognized. PostgreSQL full-text search uses functions and operators such as `to_tsvector`, `to_tsquery`, and `@@`, and OpenHalo does not translate the MySQL FULLTEXT query syntax to those primitives.
 
-**MySQL 5.7 Reference:**  
+**MySQL 5.7 Queries:**  
 The 5.7 manual describes FULLTEXT indexes and the `MATCH(expr, ...) AGAINST(search_string ...)` construct for full-text search on supported storage engines. [web:58]
 
-**Verdict:** ✅ FULLTEXT search works in MySQL 5.7.32; OpenHalo currently accepts the index DDL but not the MATCH/AGAINST query syntax.
+**MySQL Results:** 
+<img width="339" height="65" alt="Screenshot 2025-12-03 at 16 11 50" src="https://github.com/user-attachments/assets/4df289ec-9b43-490d-8b72-ffa0acf39a50" />
+<img width="1095" height="455" alt="Screenshot 2025-12-03 at 16 11 57" src="https://github.com/user-attachments/assets/3de2e9c7-dc2b-456e-a8f5-1e629f77e43b" />
+**Notes**
+
+**Verdict**
 
 ---
 
@@ -1606,6 +1681,10 @@ The MySQL 5.7 manual sections on the diagnostics area describe the use of `GET D
 ### Conclusion for Problematic Queries
 
 All of the features above are documented in the official MySQL 5.7 Reference Manual and are part of the 5.7 feature set; the observed failures occur because OpenHalo’s MySQL compatibility layer focuses on “commonly used” DML and basic DDL and does not currently implement or translate these more advanced or MySQL-specific constructs. [web:59][web:62][web:58][web:61][web:72][web:68]
+
+
+
+---
 
 
 
