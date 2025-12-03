@@ -48,6 +48,7 @@ services:
       - "5434:5432"
     volumes:
       - openhalo_data:/home/halo/ohdata
+      - /Users/neliafedele/Documents/PCE/Openhalo/name_basics_mysql.sql:/home/halo/ohdata/name_basics_mysql.sql:ro
 
 volumes:
   mysqldb_data:
