@@ -1397,97 +1397,142 @@ If queries are slightly changed for whatever reason, it will be mentioned under 
 ### 1) MySQL-only JSON helpers
 
 **Queries:**
+
 SELECT JSON_EXTRACT('{"a": 1}', '$.a');
+
 SELECT JSON_SET('{"a": 1}', '$.a', 2);
 
 **OpenHalo Result:**
+
 ERROR 32900 (HY000): function json_extract(unknown, unknown) does not exist
 
 **Explanation:**  
+
 MySQL exposes a native JSON type and a family of JSON functions such as `JSON_EXTRACT`, `JSON_SET`, and the aggregate `JSON_ARRAYAGG`. PostgreSQL provides JSON and JSONB types but uses different operators and function names, and OpenHalo’s MySQL compatibility layer does not rewrite these MySQL-specific JSON calls into PostgreSQL equivalents, so they error out at function resolution time.
 
 **MySQL 5.7.32 Result:**  
+
 <img width="329" height="108" alt="Screenshot 2025-12-03 at 15 18 18" src="https://github.com/user-attachments/assets/7527ada7-8cd0-4688-8159-4ef69ba5e4a2" />
+
 <img width="327" height="109" alt="Screenshot 2025-12-03 at 15 18 28" src="https://github.com/user-attachments/assets/5ca80c14-9d1e-4ffa-ab0a-f3211b1290cb" />
 
 
 
 **Verdict:** 
+
 Works in MySQL 5.7.32; 
-fails in OpenHalo due to missing JSON function translation. 
+
+Fails in OpenHalo due to missing JSON function translation. 
 
 ---
 
 ### 2) Multi-table DELETE
 
 **Query:**
+
 DELETE nb
+
 FROM public.name_basics nb
+
 JOIN public.name_basics nb2
+
 ON nb.nconst = nb2.nconst
+
 WHERE nb.birthyear < 1800;
 
 **OpenHalo Result:**
+
 ERROR 1478 (HY000): syntax error at or near "JOIN"
 
 **Explanation:**  
+
 This uses MySQL’s multi-table `DELETE ... FROM ... JOIN ...` syntax. PostgreSQL expresses the same operation using `DELETE ... FROM ... USING ...`, and OpenHalo does not translate the MySQL form into the PostgreSQL equivalent, so parsing fails when the `JOIN` keyword appears in a DELETE context.
 
 **MySQL 5.7.32 Queries**  
 To avoid modifying the main table, the delete was tested against a small copy so we ran the following queries:
+
 USE imdb;
 
 CREATE TABLE nb_test AS
+
 SELECT *
+
 FROM name_basics
+
 LIMIT 10;
 
 DELETE nb
+
 FROM nb_test nb
+
 JOIN nb_test nb2
+
 ON nb.nconst = nb2.nconst
+
 WHERE nb.birthyear < 1800;
 
 SELECT COUNT(*) AS remaining_rows FROM nb_test;
 
 SELECT nconst, birthyear
+
 FROM nb_test
+
 ORDER BY birthyear
+
 LIMIT 5;
+
 **MySQL 5.7.32 Results**
-Query OK, 0 rows affected (0.01 sec)
+
 <img width="408" height="118" alt="Screenshot 2025-12-03 at 15 27 08" src="https://github.com/user-attachments/assets/498e4a67-42fe-4564-8841-e47371a9e2a2" />
+
 <img width="510" height="165" alt="Screenshot 2025-12-03 at 15 27 13" src="https://github.com/user-attachments/assets/51e411c0-5ded-4329-8b95-6d2d680b6019" />
+
 **Note:**  
-In this particular data slice there were no rows with `birthyear < 1800`, so the DELETE affected 0 rows, but the statement parsed and executed successfully, confirming that the multi-table DELETE syntax itself is valid and supported in MySQL 5.7.32. [web:58]
+
+In this particular data slice there were no rows with `birthyear < 1800`, so the DELETE affected 0 rows, but the statement parsed and executed successfully, confirming that the multi-table DELETE syntax itself is valid and supported in MySQL 5.7.32.
 
 **Verdict:**  
+
 Multi-table `DELETE ... FROM ... JOIN ...` is supported in MySQL 5.7.32. 
+
 OpenHalo does not currently support this MySQL DELETE+JOIN syntax via the MySQL protocol.
 
 
 
-**Verdict:**  Works in MySQL 5.7.32; 
-fails in OpenHalo due to unsupported multi-table DELETE syntax.
+**Verdict:**  
+
+Works in MySQL 5.7.32; 
+
+Fails in OpenHalo due to unsupported multi-table DELETE syntax.
 
 ### 3) MySQL explicit index hints
 
 **Query:**
+
 SELECT *
+
 FROM public.name_basics FORCE INDEX (PRIMARY)
+
 WHERE birthyear < 1900
+
 LIMIT 5;
+
 **OpenHalo Result:**
+
 ERROR 1478 (HY000): syntax error at or near "PRIMARY"
 
 **Explanation:**  
+
 `FORCE INDEX (PRIMARY)` is a MySQL optimizer hint instructing the engine to prefer a particular index. PostgreSQL does not support index hints in this form, and OpenHalo’s MySQL layer does not strip or reinterpret the hint, so the parser encounters `PRIMARY` in an invalid position and raises an error.
 
 **MySQL 5.7 Results:**  
+
 <img width="917" height="201" alt="Screenshot 2025-12-03 at 15 35 07" src="https://github.com/user-attachments/assets/91e7f688-3d71-4c0e-8c15-767437b7ae9a" />
 
 **Verdict:**  
-`FORCE INDEX (PRIMARY)` is supported in MySQL 5.7.32. [web:58]  
+
+`FORCE INDEX (PRIMARY)` is supported in MySQL 5.7.32. 
+ 
  OpenHalo does not support MySQL index hints via the MySQL protocol.
 
 
@@ -1496,29 +1541,44 @@ ERROR 1478 (HY000): syntax error at or near "PRIMARY"
 ### 4) MySQL partitioning syntax
 
 **Query:**
+
 CREATE TABLE part_test (
+  
   id INT,
+  
   created_at DATE,
+  
   PRIMARY KEY (id, created_at)
+
 )
+
 PARTITION BY RANGE (YEAR(created_at)) (
+  
   PARTITION p0 VALUES LESS THAN (2000),
+  
   PARTITION p1 VALUES LESS THAN (2010),
+  
   PARTITION pmax VALUES LESS THAN MAXVALUE
+
 );
 
 
 **OpenHalo Result:**
+
 ERROR 1478 (HY000): syntax error at or near "("
 
 **Explanation:**  
+
 This uses MySQL’s table partitioning DDL with `PARTITION BY RANGE (YEAR(created_at))`. PostgreSQL has its own partitioning model and syntax on `CREATE TABLE`, and OpenHalo does not attempt to transform MySQL partition clauses into native PostgreSQL partition definitions. As a result, parsing fails immediately after the `PARTITION BY RANGE` clause.
 
 **MySQL 5.7 Results:**  
+
 <img width="386" height="173" alt="Screenshot 2025-12-03 at 15 48 18" src="https://github.com/user-attachments/assets/4f6e5e9c-eb14-47e3-a724-165b4ee81f79" />
 
 **Verdict:** 
+
 Works in MySQL 5.7.32 
+
 Fails in OpenHalo because MySQL partition DDL is not translated.
 
 ---
@@ -1526,14 +1586,21 @@ Fails in OpenHalo because MySQL partition DDL is not translated.
 ### 5) MySQL stored procedures
 
 **Example:**
+
 DELIMITER $$
 
 CREATE PROCEDURE get_actors()
+
 BEGIN
+
 SELECT *
+
 FROM public.name_basics
+
 WHERE primaryprofession LIKE '%actor%'
+
 LIMIT 5;
+
 END$$
 
 DELIMITER ;
@@ -1541,8 +1608,11 @@ DELIMITER ;
 CALL get_actors();
 
 **OpenHalo Result:**
+
 ERROR 1478 (HY000): syntax error at or near "SELECT"
+
 **Explanation:**  
+
 MySQL stored procedures use a statement-based language with `CREATE PROCEDURE`, `BEGIN ... END` blocks, and procedure-level control flow. PostgreSQL uses PL/pgSQL functions with different syntax and execution model. OpenHalo’s compatibility layer does not rewrite MySQL stored procedure definitions into PostgreSQL functions, so the body of the procedure fails to parse in this context.
 
 **MySQL 5.7.32 Queries:**  
@@ -1550,12 +1620,19 @@ USE imdb;
 
 DELIMITER $$
 
+
 CREATE PROCEDURE get_actors()
+
 BEGIN
+
 SELECT *
+
 FROM name_basics
+
 WHERE primaryprofession LIKE '%actor%'
+
 LIMIT 5;
+
 END$$
 
 DELIMITER ;
@@ -1563,13 +1640,18 @@ DELIMITER ;
 CALL get_actors();
 
 **MySQL 5.7.32 Results:** 
+
 <img width="387" height="152" alt="Screenshot 2025-12-03 at 15 53 15" src="https://github.com/user-attachments/assets/7e3d58c1-1925-4479-8dde-be5a7867fb86" />
 <img width="931" height="217" alt="Screenshot 2025-12-03 at 15 53 21" src="https://github.com/user-attachments/assets/95c0a1ee-bf52-4f2c-b4e4-5c13fe17de75" />
+
 **Notes**
+
 On native MySQL 5.7.32 the table is name_basics in the imdb database (no public. schema). On OpenHalo the same data is exposed as public.name_basics because it runs on PostgreSQL. This difference does not affect stored procedure support; the procedure body compiles and executes correctly on MySQL 5.7.32 once the table name is adjusted.
+
 **Verdict:**  
 Works in MySQL 5.7.32; 
-fails in OpenHalo because stored procedure DDL is not supported.
+
+Fails in OpenHalo because stored procedure DDL is not supported.
 
 
 ---
@@ -1577,110 +1659,188 @@ fails in OpenHalo because stored procedure DDL is not supported.
 ### 6) MySQL FULLTEXT search (MATCH ... AGAINST)
 
 **Queries:**
+
 CREATE FULLTEXT INDEX ft_name
+
 ON public.name_basics (primaryname);
 
 SELECT *
+
 FROM public.name_basics
+
 WHERE MATCH(primaryname) AGAINST('Fred' IN NATURAL LANGUAGE MODE);
 
+
 **OpenHalo Result:**
+
 - Index creation: succeeds  
+
 - Query:
+
 ERROR 1478 (HY000): syntax error at or near "AGAINST"
 
 **Explanation:**  
+
 OpenHalo accepts the `CREATE FULLTEXT INDEX` DDL syntax and maps it to a PostgreSQL index type, but the MySQL query form `MATCH(...) AGAINST(...)` is not recognized. PostgreSQL full-text search uses functions and operators such as `to_tsvector`, `to_tsquery`, and `@@`, and OpenHalo does not translate the MySQL FULLTEXT query syntax to those primitives.
 
 **MySQL 5.7 Queries:**  
-The 5.7 manual describes FULLTEXT indexes and the `MATCH(expr, ...) AGAINST(search_string ...)` construct for full-text search on supported storage engines. [web:58]
 
+CREATE FULLTEXT INDEX ft_name
+
+ON name_basics (primaryname);
+
+SELECT *
+
+FROM name_basics
+
+WHERE MATCH(primaryname) AGAINST('Fred' IN NATURAL LANGUAGE MODE);
 **MySQL Results:** 
+
 <img width="339" height="65" alt="Screenshot 2025-12-03 at 16 11 50" src="https://github.com/user-attachments/assets/4df289ec-9b43-490d-8b72-ffa0acf39a50" />
+
 <img width="1095" height="455" alt="Screenshot 2025-12-03 at 16 11 57" src="https://github.com/user-attachments/assets/3de2e9c7-dc2b-456e-a8f5-1e629f77e43b" />
+
 **Notes**
 
+On native MySQL 5.7.32 the table is stored as name_basics in the imdb database (there is no public schema), so the MySQL test replaces public.name_basics with name_basics and adds an explicit CREATE FULLTEXT INDEX ft_name ON name_basics(primaryname). Apart from this schema-name difference, the FULLTEXT index definition and search condition are identical to the OpenHalo test. Going forward, differneces in queries due to schema-name won't be brought up.
+
+
 **Verdict**
+
+FULLTEXT indexes and MATCH(...) AGAINST(...) queries are supported and work as expected in MySQL 5.7.32 on the same dataset.
+
+OpenHalo accepts the FULLTEXT index DDL but does not support the MATCH ... AGAINST query syntax via the MySQL protocol (syntax error at AGAINST).
 
 ---
 
 ### 7) MySQL SPATIAL indexes and functions
 
 **Queries:**
+
 CREATE SPATIAL INDEX idx_spatial
+
 ON public.name_basics (primaryname);
 
 SELECT ST_Distance(POINT(0,0), POINT(1,1));
 
 **OpenHalo Result:**
+
 - Index creation: succeeds  
+
 - Function call:
+
 ERROR 32900 (HY000): function st_distance(point, point) does not exist
 
 **Explanation:**  
+
 The `CREATE SPATIAL INDEX` syntax is accepted, but spatial functions such as `POINT()` and `ST_Distance()` are not implemented by OpenHalo’s MySQL layer. PostgreSQL typically relies on PostGIS for spatial operations, which uses its own function and type system. OpenHalo does not map MySQL spatial function calls onto PostGIS or PostgreSQL equivalents, so function lookup fails.
 
-**MySQL 5.7 Reference:**  
-The MySQL 5.7 manual includes spatial data types, spatial indexes, and functions such as `ST_Distance` and `POINT` as part of its GIS feature set. [web:58]
+**MySQL 5.7 Results:**  
 
-**Verdict:** ✅ Spatial functions work in MySQL 5.7.32; OpenHalo only accepts the DDL form and does not support MySQL spatial function calls.
+<img width="583" height="52" alt="Screenshot 2025-12-03 at 16 52 38" src="https://github.com/user-attachments/assets/f6cf926f-4550-493b-b08b-2f26cbf8fb60" />
+
+<img width="366" height="106" alt="Screenshot 2025-12-03 at 16 52 59" src="https://github.com/user-attachments/assets/a74ada73-1945-4b8d-bf2d-900f7fe56e34" />
+
+**Notes**
+
+The same SQL text is used on both systems: the SPATIAL index DDL is left unchanged even though it is invalid in MySQL 5.7.32 (because `primaryname` is not a geometry column) and surprisingly accepted by 
+
+OpenHalo; this highlights that OpenHalo’s DDL parser is more permissive here but not fully MySQL‑compatible. The real compatibility gap is in spatial *functions*: MySQL 5.7.32 successfully evaluates `ST_Distance(POINT(0,0), POINT(1,1))`, while OpenHalo reports that `st_distance(point, point)` does not exist, indicating missing implementation of MySQL GIS function semantics.
+
+**Verdict:** 
+
+Core spatial functions like `POINT()` and `ST_Distance()` are supported in MySQL 5.7.32.
+
+OpenHalo accepts the SPATIAL index DDL but does not support MySQL spatial function calls via the MySQL protocol.
 
 ---
 
 ### 8) MySQL HANDLER commands
 
 **Query:**
+
 HANDLER public.name_basics OPEN;
 
 **OpenHalo Result:**
+
 ERROR 1478 (HY000): syntax error at or near "HANDLER"
 
 **Explanation:**  
+
 `HANDLER` statements are a MySQL-specific low-level table access mechanism that bypasses the SQL optimizer for direct cursor-like operations. PostgreSQL has no equivalent feature, and OpenHalo does not implement or emulate MySQL HANDLER syntax, so these statements fail immediately at the keyword.
 
-**MySQL 5.7 Reference:**  
-The 5.7 manual documents HANDLER statements (`HANDLER ... OPEN`, `READ`, `CLOSE`) as part of the SQL command set. [web:58]
+**MySQL 5.7 Results:**  
 
-**Verdict:** ✅ HANDLER statements exist in MySQL 5.7.32; OpenHalo does not support them.
+<img width="896" height="195" alt="Screenshot 2025-12-03 at 16 56 02" src="https://github.com/user-attachments/assets/9ed5eb4a-704b-424d-95da-ff48fdc66f56" />
+
+**Verdict:**
+
+`HANDLER ... OPEN/READ/CLOSE` statements are supported and work as documented in MySQL 5.7.32.
+
+OpenHalo does not support MySQL HANDLER statements via the MySQL protocol (syntax error at `HANDLER`).
 
 ---
 
 ### 9) SHOW TABLE STATUS
+**OpenHalo Query**
+
+USE imdb;
+
+SHOW TABLE STATUS;
 
 **Query:**
+
+ERROR 130 (HY000): invalid value for parameter "search_path"
+
 ERROR 1049 (HY000): no schema has been selected to create in
 
 **Explanation:**  
-This command inspects table metadata in the current database. MySQL has the concept of a current database selected with `USE dbname;`, and `SHOW TABLE STATUS` resolves table names against that context. OpenHalo’s MySQL layer does not consistently map a MySQL “current database” to a PostgreSQL database/schema pair, so operations that rely on that context, like `SHOW TABLE STATUS`, fail even though other SHOW forms may work when fully qualified names or system catalogs are used.
 
-**MySQL 5.7 Reference:**  
-The 5.7 reference manual documents `SHOW TABLE STATUS` as a standard way to list table properties and statistics within a database. [web:58]
+SHOW TABLE STATUS relies on a valid “current database” set by USE dbname; in MySQL, but on OpenHalo USE imdb; is translated into a PostgreSQL search_path change and fails because there is no corresponding imdb schema, which produces ERROR 130 (HY000): invalid value for parameter "search_path". As a result, there is still no usable current-database context when SHOW TABLE STATUS; runs, so it immediately fails with ERROR 1049 (HY000): no schema has been selected to create in, even though the same USE imdb; SHOW TABLE STATUS; sequence works as documented on native MySQL 5.7.32
 
-**Verdict:** ✅ Works in MySQL 5.7.32; fails in OpenHalo due to database/schema context handling.
+**MySQL 5.7 Results:**  
+
+<img width="1681" height="270" alt="Screenshot 2025-12-03 at 16 57 36" src="https://github.com/user-attachments/assets/3040c665-4dce-44f5-b428-5f4df0d0f59b" />
+
+**Verdict:**
+
+USE imdb; followed by SHOW TABLE STATUS; works as expected on MySQL 5.7.32 and returns table metadata for the selected database.​
+
+On OpenHalo, USE imdb; fails due to an invalid PostgreSQL search_path and SHOW TABLE STATUS; cannot run without a valid current-database context.​
 
 ---
 
 ### 10) MySQL GET DIAGNOSTICS
 
 **Query:**
+
 GET DIAGNOSTICS @rows = ROW_COUNT;
 
 **OpenHalo Result:**
+
 ERROR 1478 (HY000): syntax error at or near "GET"
 
 **Explanation:**  
-`GET DIAGNOSTICS` in MySQL is used to read information from the diagnostics area, typically inside stored programs, and assign it to user-defined variables. PostgreSQL uses a different diagnostics mechanism within PL/pgSQL, and OpenHalo does not implement MySQL’s `GET DIAGNOSTICS` syntax at the SQL level, so the statement is rejected during parsing.
 
-**MySQL 5.7 Reference:**  
-The MySQL 5.7 manual sections on the diagnostics area describe the use of `GET DIAGNOSTICS` for retrieving statement status information in stored routines. [web:72][web:68]
+`GET DIAGNOSTICS` is a MySQL statement that reads information from the diagnostics area (for example, the `ROW_COUNT` of the last DML statement) into a user-defined variable. PostgreSQL exposes diagnostics in a different way inside PL/pgSQL, and OpenHalo’s MySQL layer does not implement the MySQL `GET DIAGNOSTICS` syntax at all, so the parser rejects the statement at the `GET` keyword.
 
-**Verdict:** ✅ Supported in MySQL 5.7.32 in stored-program contexts; not supported by OpenHalo’s MySQL interface.
+
+**MySQL 5.7 Results:**  
+
+<img width="310" height="53" alt="Screenshot 2025-12-03 at 17 06 52" src="https://github.com/user-attachments/assets/cb7ab775-6dbd-4831-9866-b4208d8baa0b" />
+
+
+**Verdict:** 
+
+`GET DIAGNOSTICS @rows = ROW_COUNT;` is a supported MySQL 5.7.32 statement for accessing the diagnostics area. 
+
+OpenHalo does not support the MySQL `GET DIAGNOSTICS` statement via the MySQL protocol (syntax error at `GET`).
 
 ---
 
 ### Conclusion for Problematic Queries
 
-All of the features above are documented in the official MySQL 5.7 Reference Manual and are part of the 5.7 feature set; the observed failures occur because OpenHalo’s MySQL compatibility layer focuses on “commonly used” DML and basic DDL and does not currently implement or translate these more advanced or MySQL-specific constructs. [web:59][web:62][web:58][web:61][web:72][web:68]
+All of the features above are documented in the official MySQL 5.7 Reference Manual and are part of the 5.7 feature set; the observed failures occur because OpenHalo’s MySQL compatibility layer focuses on “commonly used” DML and basic DDL and does not currently implement or translate these more advanced or MySQL-specific constructs.
 
 
 
