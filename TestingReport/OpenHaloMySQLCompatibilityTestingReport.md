@@ -1780,7 +1780,7 @@ USE imdb;
 
 SHOW TABLE STATUS;
 
-**Query:**
+**OpenHalo Results:**
 
 ERROR 130 (HY000): invalid value for parameter "search_path"
 
@@ -1829,6 +1829,48 @@ ERROR 1478 (HY000): syntax error at or near "GET"
 OpenHalo does not support the MySQL `GET DIAGNOSTICS` statement via the MySQL protocol (syntax error at `GET`).
 
 ---
+### 11) SELECT ... INTO OUTFILE (server-side export)
+
+**OpenHalo Query (MySQL protocol, port 3306):**
+
+SELECT primaryname, birthyear, primaryprofession
+
+FROM public.name_basics
+
+WHERE primaryprofession = 'actor'
+
+INTO OUTFILE '/tmp/actors_openhalo.csv'
+
+FIELDS TERMINATED BY ','
+
+ENCLOSED BY '"'
+
+LINES TERMINATED BY '\n';
+
+
+**OpenHalo Result:**
+
+ERROR 1478 (HY000): syntax error at or near "INTO"
+
+
+**Explanation**  
+
+`SELECT ... INTO OUTFILE` is standard MySQL syntax for exporting query results to a server-side file, with options to control field and line formatting. On OpenHalo, the parser does not recognize the `INTO OUTFILE` clause in a SELECT statement, so the query fails at the `INTO` keyword even though the preceding SELECT is valid.
+
+**MySQL 5.7.32 Results**
+
+<img width="469" height="120" alt="Screenshot 2025-12-05 at 15 17 44" src="https://github.com/user-attachments/assets/e4fc19ee-8de9-4084-9b41-79214d2a7ccb" />
+
+**Verdict**  
+
+`SELECT ... INTO OUTFILE` is supported and works as documented in MySQL 5.7.32. [web:238][web:239]  
+
+OpenHalo does not support the `INTO OUTFILE` clause in SELECT statements via the MySQL protocol (syntax error at `INTO`).
+
+
+---
+
+
 
 ### Conclusion for Problematic Queries
 
@@ -1840,7 +1882,7 @@ All of the features above are documented in the official MySQL 5.7 Reference Man
 
 
 
----
+
 
 ### 3) MySQL explicit index hints
 
