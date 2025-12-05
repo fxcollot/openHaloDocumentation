@@ -49,7 +49,7 @@ A comprehensive test suite validating MySQL protocol compatibility and standard 
 **Records:** 100,000 entries from IMDb dataset
 
 **Schema:**
-```
+```sql
 
 CREATE TABLE name_basics (
 nconst VARCHAR(20) PRIMARY KEY,
@@ -72,7 +72,7 @@ knownfortitles VARCHAR(255)
 
 ### Test 1.1: Simple Field Query
 **Query:**
-```
+```sql
 
 SELECT * FROM name_basics WHERE primaryprofession = 'actor';
 
@@ -91,7 +91,7 @@ SELECT * FROM name_basics WHERE primaryprofession = 'actor';
 
 ### Test 1.2: Multi-Criteria Search with Pattern Matching
 **Query:**
-```
+```sql
 
 SELECT * FROM name_basics
 WHERE birthyear > 1970 AND primaryprofession LIKE '%actor%';
@@ -113,7 +113,7 @@ WHERE birthyear > 1970 AND primaryprofession LIKE '%actor%';
 
 ### Test 2.1: ORDER BY with Multiple Conditions
 **Query:**
-```
+```sql
 
 SELECT primaryname, birthyear, primaryprofession
 FROM name_basics
@@ -126,7 +126,7 @@ LIMIT 10;
 **Status:**  **PASSED**
 
 **Sample Output:**
-```
+```sql
 
 +------------------+-----------+-------------------+
 | primaryname      | birthyear | primaryprofession |
@@ -149,7 +149,7 @@ LIMIT 10;
 
 ### Test 3.1: GROUP BY with COUNT
 **Query:**
-```
+```sql
 
 SELECT primaryprofession, COUNT(*) AS total
 FROM name_basics
@@ -160,7 +160,7 @@ ORDER BY total DESC;
 **Status:**  **PASSED**
 
 **Sample Results:**
-```
+```sql
 
 +-------------------+-------+
 | primaryprofession | total |
@@ -183,7 +183,7 @@ ORDER BY total DESC;
 
 ### Test 3.2: AVG() Aggregation with Multiple Columns
 **Query:**
-```
+```sql
 
 SELECT primaryprofession,
 AVG(birthyear) AS avg_birthyear,
@@ -207,7 +207,7 @@ LIMIT 10;
 
 ### Test 3.3: MIN/MAX Functions
 **Query:**
-```
+```sql
 
 SELECT MAX(birthyear) AS most_recent,
 MIN(birthyear) AS oldest
@@ -226,7 +226,7 @@ WHERE birthyear IS NOT NULL;
 
 ### Test 3.4: Advanced Grouping with FLOOR()
 **Query:**
-```
+```sql
 
 SELECT FLOOR(birthyear/10)*10 AS decade,
 COUNT(*) AS total
@@ -250,7 +250,7 @@ ORDER BY decade DESC;
 
 ### Test 4.1: INSERT Operation
 **Query:**
-```
+```sql
 
 INSERT INTO name_basics
 (nconst, primaryname, birthyear, deathyear, primaryprofession, knownfortitles)
@@ -266,7 +266,7 @@ VALUES
 
 ### Test 4.2: SELECT Verification After INSERT
 **Query:**
-```
+```sql
 
 SELECT * FROM name_basics WHERE nconst = 'nm9999999';
 
@@ -275,7 +275,7 @@ SELECT * FROM name_basics WHERE nconst = 'nm9999999';
 **Status:**  **PASSED**
 
 **Output:**
-```
+```sql
 
 +-----------+------------+-----------+-----------+-------------------+----------------+
 | nconst    | primaryname| birthyear | deathyear | primaryprofession | knownfortitles |
@@ -289,7 +289,7 @@ SELECT * FROM name_basics WHERE nconst = 'nm9999999';
 
 ### Test 4.3: UPDATE Operation
 **Query:**
-```
+```sql
 
 UPDATE name_basics
 SET birthyear = 1985
@@ -306,7 +306,7 @@ WHERE nconst = 'nm9999999';
 
 ### Test 4.4: DELETE Operation
 **Query:**
-```
+```sql
 
 DELETE FROM name_basics WHERE nconst = 'nm9999999';
 
@@ -323,7 +323,7 @@ DELETE FROM name_basics WHERE nconst = 'nm9999999';
 
 ### Test 5.1: CREATE INDEX on VARCHAR Column
 **Query:**
-```
+```sql
 
 CREATE INDEX idx_profession ON name_basics(primaryprofession);
 
@@ -336,7 +336,7 @@ CREATE INDEX idx_profession ON name_basics(primaryprofession);
 
 ### Test 5.2: CREATE INDEX on INT Column
 **Query:**
-```
+```sql
 
 CREATE INDEX idx_birthyear ON name_basics(birthyear);
 
@@ -349,7 +349,7 @@ CREATE INDEX idx_birthyear ON name_basics(birthyear);
 
 ### Test 5.3: SHOW INDEX Verification
 **Query:**
-```
+```sql
 
 SHOW INDEX FROM name_basics;
 
@@ -368,7 +368,7 @@ SHOW INDEX FROM name_basics;
 
 ### Test 6.1: Multi-Table Joins (INNER JOIN)
 **Query:**
-```
+```sql
 
 SELECT nb.primaryname, f.title, f.release_year
 FROM name_basics nb
@@ -404,7 +404,7 @@ LIMIT 10;
 
 ### Test 6.2: LEFT JOIN with Aggregation
 **Query:**
-```
+```sql
 SELECT nb.primaryname, COUNT(fa.film_id) AS nb_films
 FROM name_basics nb
 LEFT JOIN film_actor fa ON nb.nconst = fa.nconst
@@ -428,7 +428,7 @@ LIMIT 10;
 ### Test 6.3: JOIN with Multiple Conditions and Filtering
 **Query:**
 
-```
+```sql
 SELECT nb.primaryname, f.title, f.rating, fa.role
 FROM name_basics nb
 JOIN film_actor fa ON nb.nconst = fa.nconst
@@ -442,7 +442,7 @@ ORDER BY f.rating DESC;
 **Results:** 3 rows returned
 
 **Sample Output:**
-```
+```sql
 +---------------------+----------------+--------+----------+
 | primaryname | title | rating | role |
 +---------------------+----------------+--------+----------+
@@ -462,7 +462,7 @@ ORDER BY f.rating DESC;
 
 ### Test 6.4: SELF JOIN
 **Query:**
-```
+```sql
 SELECT f1.title AS film1, f2.title AS film2, f1.genre
 FROM films f1
 JOIN films f2 ON f1.genre = f2.genre AND f1.film_id < f2.film_id;
@@ -481,7 +481,7 @@ JOIN films f2 ON f1.genre = f2.genre AND f1.film_id < f2.film_id;
 
 ### Test 6.5: JOIN with HAVING and DISTINCT
 **Query:**
-```
+```sql
 
 SELECT nb.primaryname, COUNT(DISTINCT f.genre) AS nb_genres
 FROM name_basics nb
@@ -497,7 +497,7 @@ HAVING COUNT(DISTINCT f.genre) > 1;
 **Results:** 1 row returned
 
 **Sample Output:**
-```
+```sql
 
 +-------------------+-----------+
 | primaryname       | nb_genres |
@@ -516,7 +516,7 @@ HAVING COUNT(DISTINCT f.genre) > 1;
 
 ### Test 6.6: Subquery with JOIN
 **Query:**
-```
+```sql
 
 SELECT f.title, f.rating
 FROM films f
@@ -543,7 +543,7 @@ WHERE nb.birthyear < 1950
 
 ### Test 7.1: CREATE VIEW
 **Query:**
-```
+```sql
 
 CREATE VIEW actor_summary AS
 SELECT primaryname, birthyear, primaryprofession
@@ -565,7 +565,7 @@ ORDER BY birthyear DESC;
 
 ### Test 7.2: Query on VIEW
 **Query:**
-```
+```sql
 
 SELECT * FROM actor_summary LIMIT 10;
 
@@ -575,7 +575,7 @@ SELECT * FROM actor_summary LIMIT 10;
 **Execution Time:** 0.17 sec
 
 **Sample Output:**
-```
+```sql
 
 +-------------------+-----------+-------------------+
 | primaryname       | birthyear | primaryprofession |
@@ -598,7 +598,7 @@ SELECT * FROM actor_summary LIMIT 10;
 
 ### Test 7.3: DROP VIEW
 **Query:**
-```
+```sql
 
 DROP VIEW actor_summary;
 
@@ -615,7 +615,7 @@ DROP VIEW actor_summary;
 
 ### Test 7.4: Transaction COMMIT
 **Query:**
-```
+```sql
 
 START TRANSACTION;
 INSERT INTO name_basics VALUES ('nm8888888', 'Transaction Test', 1995, NULL, 'actor', 'tt9999999');
@@ -636,7 +636,7 @@ SELECT * FROM name_basics WHERE nconst = 'nm8888888';
 
 ### Test 7.5: Transaction ROLLBACK
 **Query:**
-```
+```sql
 
 START TRANSACTION;
 DELETE FROM name_basics WHERE nconst = 'nm8888888';
@@ -649,7 +649,7 @@ SELECT * FROM name_basics WHERE nconst = 'nm8888888';
 **Results:** Data restored after ROLLBACK
 
 **Sample Output:**
-```
+```sql
 
 +-----------+------------------+-----------+-----------+-------------------+----------------+
 | nconst    | primaryname      | birthyear | deathyear | primaryprofession | knownfortitles |
@@ -670,7 +670,7 @@ SELECT * FROM name_basics WHERE nconst = 'nm8888888';
 
 ### Test 8.1: CONCAT Function
 **Query:**
-```
+```sql
 
 SELECT CONCAT(primaryname, ' (', birthyear, ')') AS full_info
 FROM name_basics
@@ -683,7 +683,7 @@ LIMIT 10;
 **Execution Time:** 0.00 sec
 
 **Sample Output:**
-```
+```sql
 
 +-----------------------------+
 | full_info                   |
@@ -706,7 +706,7 @@ LIMIT 10;
 
 ### Test 8.2: SUBSTRING Function
 **Query:**
-```
+```sql
 
 SELECT primaryname, SUBSTRING(primaryname, 1, 10) AS short_name
 FROM name_basics LIMIT 10;
@@ -717,7 +717,7 @@ FROM name_basics LIMIT 10;
 **Execution Time:** 0.00 sec
 
 **Sample Output:**
-```
+```sql
 
 +--------------------------+------------+
 | primaryname              | short_name |
@@ -738,7 +738,7 @@ FROM name_basics LIMIT 10;
 
 ### Test 8.3: UPPER and LOWER Functions
 **Query:**
-```
+```sql
 
 SELECT UPPER(primaryname) AS name_upper, LOWER(primaryprofession) AS prof_lower
 FROM name_basics LIMIT 10;
@@ -749,7 +749,7 @@ FROM name_basics LIMIT 10;
 **Execution Time:** 0.02 sec
 
 **Sample Output:**
-```
+```sql
 
 +--------------------------+------------------------------------+
 | name_upper               | prof_lower                         |
@@ -770,7 +770,7 @@ FROM name_basics LIMIT 10;
 
 ### Test 8.4: LENGTH Function
 **Query:**
-```
+```sql
 
 SELECT primaryname, LENGTH(primaryname) AS name_length
 FROM name_basics
@@ -783,7 +783,7 @@ LIMIT 10;
 **Execution Time:** 0.05 sec
 
 **Sample Output:**
-```
+```sql
 
 +----------------------------------------------------------+-------------+
 | primaryname                                              | name_length |
@@ -804,7 +804,7 @@ LIMIT 10;
 
 ### Test 8.5: REPLACE Function
 **Query:**
-```
+```sql
 
 SELECT primaryname, REPLACE(primaryname, ' ', '_') AS name_with_underscores
 FROM name_basics LIMIT 10;
@@ -815,7 +815,7 @@ FROM name_basics LIMIT 10;
 **Execution Time:** 0.00 sec
 
 **Sample Output:**
-```
+```sql
 
 +--------------------------+--------------------------+
 | primaryname              | name_with_underscores    |
@@ -836,7 +836,7 @@ FROM name_basics LIMIT 10;
 
 ### Test 8.6: TRIM Function
 **Query:**
-```
+```sql
 
 SELECT primaryname, TRIM(primaryname) AS trimmed_name
 FROM name_basics LIMIT 10;
@@ -859,7 +859,7 @@ FROM name_basics LIMIT 10;
 ### Test 9.1: UNION Operations
 **Query:**
 
-```
+```sql
 
 SELECT primaryname AS name, 'Actor' AS type
 FROM name_basics
@@ -885,7 +885,7 @@ LIMIT 5;
 
 ### Test 9.2: CASE WHEN Conditional Logic
 **Query:**
-```
+```sql
 
 SELECT
 nb.primaryname,
@@ -903,7 +903,7 @@ LIMIT 10;
 **Execution Time:** 0.05 sec
 
 **Sample Output:**
-```
+```sql
 
 +--------------------------+---------+
 | primaryname              | era     |
@@ -933,7 +933,7 @@ LIMIT 10;
 
 ### Test 10.1: UNIQUE Constraint
 **Query:**
-```
+```sql
 
 -- Add UNIQUE constraint
 ALTER TABLE films ADD CONSTRAINT unique_title UNIQUE (title);
@@ -950,7 +950,7 @@ INSERT INTO films VALUES ('tt9999999', 'Example Film 1', 2025, 5.0, 'Test');
 **Result:** Constraint created and enforced successfully
 
 **Sample Output:**
-```
+```sql
 
 ERROR 1062 (HY000): duplicate key value violates unique constraint "_28980_unique_title"
 
@@ -966,7 +966,7 @@ ERROR 1062 (HY000): duplicate key value violates unique constraint "_28980_uniqu
 
 ### Test 10.2: FOREIGN KEY Constraint
 **Query:**
-```
+```sql
 
 -- Add FOREIGN KEY constraint
 ALTER TABLE film_actor
@@ -982,7 +982,7 @@ SHOW CREATE TABLE film_actor;
 **Result:** `Query OK, 0 rows affected (0.02 sec)`
 
 **Sample Output:**
-```
+```sql
 
 CONSTRAINT `fk_actor` FOREIGN KEY (`nconst`)
 REFERENCES `name_basics` (`nconst`)
@@ -1000,7 +1000,7 @@ ON DELETE NO ACTION ON UPDATE NO ACTION
 
 ### Test 10.3: CHECK Constraint
 **Query:**
-```
+```sql
 
 -- Add CHECK constraint
 ALTER TABLE films
@@ -1016,7 +1016,7 @@ INSERT INTO films VALUES ('tt8888888', 'Old Film', 1700, 5.0, 'Drama');
 **Result:** Constraint created and enforced successfully
 
 **Sample Output:**
-```
+```sql
 
 ERROR 1264 (HY000): new row for relation "films" violates check constraint "check_year"
 
@@ -1032,7 +1032,7 @@ ERROR 1264 (HY000): new row for relation "films" violates check constraint "chec
 
 ### Test 10.4: DROP Constraint
 **Query:**
-```
+```sql
 
 -- Drop UNIQUE constraint
 ALTER TABLE films DROP CONSTRAINT unique_title;
@@ -1064,7 +1064,7 @@ SHOW CREATE TABLE film_actor;
 
 ### Test 11.1: Derived Table (Subquery in FROM)
 **Query:**
-```
+```sql
 
 SELECT * FROM (
 SELECT primaryname, birthyear
@@ -1079,7 +1079,7 @@ LIMIT 10;
 **Execution Time:** 0.02 sec
 
 **Sample Output:**
-```
+```sql
 
 +------------------------+-----------+
 | primaryname            | birthyear |
@@ -1103,7 +1103,7 @@ LIMIT 10;
 
 ### Test 11.2: Correlated Subquery
 **Query:**
-```
+```sql
 
 SELECT nb1.primaryname, nb1.birthyear
 FROM name_basics nb1
@@ -1121,7 +1121,7 @@ LIMIT 10;
 **Execution Time:** 1.62 sec
 
 **Sample Output:**
-```
+```sql
 
 +----------------------+-----------+
 | primaryname          | birthyear |
@@ -1144,7 +1144,7 @@ LIMIT 10;
 
 ### Test 11.3: EXISTS Operator
 **Query:**
-```
+```sql
 
 SELECT primaryname, primaryprofession
 FROM name_basics nb
@@ -1160,7 +1160,7 @@ LIMIT 10;
 **Execution Time:** 0.03 sec
 
 **Sample Output:**
-```
+```sql
 
 +---------------------+-------------------------+
 | primaryname         | primaryprofession       |
@@ -1185,7 +1185,7 @@ LIMIT 10;
 
 ### Test 12.1: INTO OUTFILE Export
 **Query:**
-```
+```sql
 
 SELECT primaryname, birthyear, primaryprofession
 FROM name_basics
@@ -1208,7 +1208,7 @@ LINES TERMINATED BY '\n';
 
 ### Test 12.2: Shell-Based Export (Workaround)
 **Command:**
-```
+```sql
 
 mysql -P 3306 -h 127.0.0.1 -e "USE imdb; SELECT * FROM name_basics LIMIT 100;" | sed 's/\t/,/g' > ~/actors.csv
 
@@ -1227,7 +1227,7 @@ mysql -P 3306 -h 127.0.0.1 -e "USE imdb; SELECT * FROM name_basics LIMIT 100;" |
 
 ### Test 13.1: Fuzzy Search with LIKE
 **Query:**
-```
+```sql
 
 SELECT * FROM name_basics
 WHERE primaryname LIKE '%Leonardo%DiCaprio%';
@@ -1238,7 +1238,7 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
 **Result:** Empty set (pattern too specific)
 
 **Working Alternative:**
-```
+```sql
 
 SELECT * FROM name_basics
 WHERE primaryname LIKE '%Tom%'
@@ -1256,7 +1256,7 @@ LIMIT 10;
 
 ### Test 13.2: Clustering Operations
 **Query:**
-```
+```sql
 
 CLUSTER films BY genre;
 
@@ -1269,7 +1269,7 @@ CLUSTER films BY genre;
 
 ### Test 13.3: Recommendation Systems
 **Query:**
-```
+```sql
 
 RECOMMEND films SIMILAR TO 'Inception';
 
@@ -1283,7 +1283,7 @@ RECOMMEND films SIMILAR TO 'Inception';
 ## Test Summary
 
 ### Results Overview
-```
+```sql
 | Category | Tested | Passed | Failed | Not Tested | Success Rate |
 |----------|--------|--------|--------|------------|--------------|
 | Basic Queries | 2 | 2 | 0 | 0 | 100% |
