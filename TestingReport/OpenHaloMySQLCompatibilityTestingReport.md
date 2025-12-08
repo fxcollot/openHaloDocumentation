@@ -1323,15 +1323,7 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
    - Custom OpenHalo-specific functions unclear
    - Migration guide would be beneficial
 
-3. **Testing Gaps**
-   - ~~Multi-table joins not validated~~ ✅ **TESTED**
-   - ~~Transaction rollback not tested~~ ✅ **TESTED**
-   - ~~View creation not tested~~ ✅ **TESTED**
-   - ~~Constraints (FOREIGN KEY, CHECK) not tested~~ ✅ **TESTED**
-   - Stored procedures not evaluated
-   - Triggers not tested
-
-4. **UNION Operations**
+3. **UNION Operations**
    - UNION operator not supported
    - May require query rewriting for migrations
    - Alternative approaches needed for combining result sets
