@@ -6,13 +6,30 @@ All MySQL queries are **automatically translated**, and data is stored in Postgr
 The full workflow is described below.
 
 ---
+## Create the mysql schema 
+```bash
+  psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
+```
+
+```sql
+CREATE SCHEMA mysql AUTHORIZATION halo;
+CREATE DATABASE openhalo;
+\q
+```
+```bash
+psql -h 127.0.0.1 -p 5434 -U halo -d openhalo
+```
+
+```sql
+CREATE EXTENSION aux_mysql;
+```
 
 ## Creating a MySQL Database Through OpenHalo
 
 Connect using a MySQL root if halo does not have enough access : 
 
 ```bash
-  mysql -h mysqldb -P 3306 -u root -p openhalo
+  mysql -h openhalo -P 3308 -u root -p openhalo
 ```
 Enter the password predetermined, here : mysecret
 
@@ -34,10 +51,10 @@ Exit the root to connect to 'halo':
 exit;
 ```
 
-Connect using a MySQL client (port 3306):
+Connect using a MySQL client (port 3308):
 
 ```bash
-  mysql -h mysqldb -P 3306 -u halo -p openhalo
+  mysql -h openhalo -P 3308 -u halo -p openhalo
 ```
 
 ## Use the database:
