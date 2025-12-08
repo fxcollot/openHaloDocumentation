@@ -31,7 +31,7 @@ A comprehensive test suite validating MySQL protocol compatibility and standard 
 
 **System Configuration:**
 - **OpenHalo Version:** 1.0.14.18 (251127)
-- **Operating System:** Ubuntu 24.04.3 LTS on WSL2
+- **Operating Systems:** Ubuntu 24.04.3 LTS on WSL2/MacOS Tahoe 26.0
 - **MySQL Client:** 8.0.x
 - **Test Duration:** November 27 - December 3, 2025
 
