@@ -26,12 +26,12 @@ CREATE EXTENSION aux_mysql;
 
 ## Creating a MySQL Database Through OpenHalo
 
-Connect using a MySQL root if halo does not have enough access : 
+Connect to MySQL client halo (port 3308) : 
 
 ```bash
-  mysql -h openhalo -P 3308 -u root -p openhalo
+  mysql -h openhalo -P 3308 -u halo -p openhalo
 ```
-Enter the password predetermined, here : mysecret
+Enter the password predetermined, here : halopass
 
 
 ## Create a database:
@@ -39,8 +39,16 @@ Enter the password predetermined, here : mysecret
 ```sql
 CREATE DATABASE testdb;
 ```
-Grant all access to client 'halo':
 
+If halo does not have enough access: 
+Connect to root: 
+
+```bash
+  mysql -h openhalo -P 3308 -u halo -p openhalo
+```
+Enter the password predetermined, here : halopass
+
+Grant all access to client 'halo':
 ```sql
 GRANT ALL PRIVILEGES ON testdb.* TO 'halo'@'%';
 FLUSH PRIVILEGES;
