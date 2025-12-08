@@ -193,3 +193,9 @@ This ensures that the full database structure and its data have been successfull
 - Data can be validated directly from PostgreSQL.
 
 - Databases can also be loaded through a MySQL .sql dump file.
+
+
+---
+## Conclusion
+- When testdb is created on mysql it does not create itself automatically on Postgre thus the connexion does not work.
+- Using Openhalo with a UBI environment, disable the connexion of mysql on Openhalo. The creation and deal of data with Openhalo is broken when containerised. 
