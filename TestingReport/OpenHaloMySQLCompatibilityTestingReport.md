@@ -386,14 +386,13 @@ LIMIT 10;
 **Sample Output:**
 
 +---------------------+----------------+--------------+
-| primaryname | title | release_year |
+| primaryname         | title          | release_year |
 +---------------------+----------------+--------------+
-| Luis Javier Flores | Example Film 1 | 2008 |
-| Giuliano Castaldo | Example Film 2 | 2015 |
-| Giuliano Castaldo | Example Film 3 | 2013 |
-| Curtis Tyler Haynes | Example Film 4 | 1996 |
+| Luis Javier Flores  | Example Film 1 |         2008 |
+| Giuliano Castaldo   | Example Film 2 |         2015 |
+| Giuliano Castaldo   | Example Film 3 |         2013 |
+| Curtis Tyler Haynes | Example Film 4 |         1996 |
 +---------------------+----------------+--------------+
-
 
 **Notes:**
 - Multi-table INNER JOIN works correctly
