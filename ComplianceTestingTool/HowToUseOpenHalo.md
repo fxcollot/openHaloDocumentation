@@ -93,9 +93,9 @@ Although operations are performed using a MySQL client, the underlying data is s
 
 ## Validating Data in PostgreSQL
 
-Connect to PostgreSQL (port 5432):
+Connect to PostgreSQL (port 5434 on Dockercompose):
 ```bash
-psql -h 127.0.0.1 -p 5432 -U halo -d halo0root
+psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
 ```
 
 List schemas to confirm the mapping:
