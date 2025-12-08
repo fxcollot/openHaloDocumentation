@@ -862,25 +862,42 @@ FROM name_basics LIMIT 10;
 
 ```sql
 
-SELECT primaryname AS name, 'Actor' AS type
-FROM name_basics
-WHERE primaryprofession = 'actor'
-LIMIT 5
+(SELECT primaryname AS name, 'Actor' AS type
+ FROM name_basics
+ WHERE primaryprofession = 'actor'
+ LIMIT 5)
 UNION
-SELECT primaryname AS name, 'Actress' AS type
-FROM name_basics
-WHERE primaryprofession = 'actress'
-LIMIT 5;
+(SELECT primaryname AS name, 'Actress' AS type
+ FROM name_basics
+ WHERE primaryprofession = 'actress'
+ LIMIT 5);
 
 ```
 
-**Status:**  **FAILED**  
-**Error:** `ERROR 1478 (HY000): syntax error at or near "UNION"`
+**Status:**  **PASSED**  
+**Sample Output:** 
+```sql
++--------------------+---------+
+| name               | type    |
++--------------------+---------+
+| Pamela Bellwood    | Actress |
+| Mikhail Kozlovsky  | Actor   |
+| Petri Aalto        | Actor   |
+| Maxine Bahns       | Actress |
+| Kate Reid          | Actress |
+| Matt Lyon          | Actor   |
+| Christopher Prince | Actor   |
+| Joanna Pacula      | Actress |
+| Timm Zemanek       | Actor   |
+| Belinda Bauer      | Actress |
++--------------------+---------+
+10 rows in set (0.02 sec)
+
+```
 
 **Notes:**
-- UNION operator not supported in OpenHalo
-- Alternative: Use separate queries or combine with application logic
-- Limitation for MySQL migrations requiring UNION
+- UNION operator works correctly.
+-Successfully combines result sets from multiple queries
 
 ---
 
