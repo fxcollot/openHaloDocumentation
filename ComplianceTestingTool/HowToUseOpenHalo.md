@@ -12,7 +12,7 @@ The full workflow is described below.
 Connect using a MySQL root if halo does not have enough access : 
 
 ```bash
-mysql -u root -p
+  mysql -h mysqldb -P 3306 -u root -p openhalo
 ```
 Enter the password predetermined, here : mysecret
 
@@ -37,7 +37,7 @@ exit;
 Connect using a MySQL client (port 3306):
 
 ```bash
-mysql -h mysqldb -u halo -p
+  mysql -h mysqldb -P 3306 -u halo -p openhalo
 ```
 
 ## Use the database:
