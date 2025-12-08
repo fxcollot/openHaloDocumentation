@@ -1702,7 +1702,7 @@ WHERE MATCH(primaryname) AGAINST('Fred' IN NATURAL LANGUAGE MODE);
 
 **Notes**
 
-On native MySQL 5.7.32 the table is stored as name_basics in the imdb database (there is no public schema), so the MySQL test replaces public.name_basics with name_basics and adds an explicit CREATE FULLTEXT INDEX ft_name ON name_basics(primaryname). Apart from this schema-name difference, the FULLTEXT index definition and search condition are identical to the OpenHalo test. Going forward, differneces in queries due to schema-name won't be brought up.
+On native MySQL 5.7.32 the table is stored as name_basics in the imdb database (there is no public schema), so the MySQL test replaces public.name_basics with name_basics and adds an explicit CREATE FULLTEXT INDEX ft_name ON name_basics(primaryname). Apart from this schema-name difference, the FULLTEXT index definition and search condition are identical to the OpenHalo test. Going forward, differences in queries due to schema-name won't be brought up.
 
 
 **Verdict**
