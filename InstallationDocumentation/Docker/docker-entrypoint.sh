@@ -1,53 +1,48 @@
 #!/bin/bash
 set -e
 
-echo "=== Démarrage d'OpenHalo (PostgreSQL + compat MySQL) ==="
+echo "=== Start of Openhalo (PostgreSQL + compat MySQL) ==="
 
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
-    echo "Initialisation de PostgreSQL..."
+    echo "Initializing PostgreSQL..."
+    # Initialize the database cluster
     initdb -D "$PGDATA"
 
-    echo "Configuration de la compatibilité MySQL..."
+    echo "Configuring MySQL compatibility..."
+    # Configuration added to postgresql.conf
     echo "database_compat_mode = 'mysql'"        >> $PGDATA/postgresql.conf
     echo "mysql.listener_on = true"             >> $PGDATA/postgresql.conf
     echo "mysql.port = 3308"                    >> $PGDATA/postgresql.conf
     echo "listen_addresses = '*'"               >> $PGDATA/postgresql.conf
     echo "port = 5434"                          >> $PGDATA/postgresql.conf
-    echo "unix_socket_directories = '/tmp'" >> $PGDATA/postgresql.conf
+    echo "unix_socket_directories = '/tmp'"     >> $PGDATA/postgresql.conf
 
+    # Access configuration (allows passwordless local connection)
     echo "host all all all trust"               >> $PGDATA/pg_hba.conf
 
-    echo "Démarrage temporaire pour créer la base de données..."
+    echo "Temporary start to create the database..."
     
-    # Démarrer temporairement le serveur en arrière-plan
+    # Temporarily start the server in the background
+    # Note: pg_ctl is used for temporary initialization
     pg_ctl -D "$PGDATA" -l "$PGDATA/temp_logfile" start
     
-    # Attendre que le serveur soit prêt (connexion par défaut à template1)
-    until pg_isready -h localhost -p 5434 -U $(whoami) -d template1; do
-        echo "En attente de PostgreSQL (temp)..."
+    # Wait for the server to be ready (default connection to template1)
+    until pg_isready -h /tmp -U $(whoami) -d template1; do
+        echo "Waiting for PostgreSQL (temp) via socket..."
         sleep 1
     done
 
-    # Exécuter les commandes SQL pour créer la DB et l'utilisateur
-    # L'utilisateur de connexion est $(whoami) qui est 'halo'
-    psql -h localhost -p 5434 -U $(whoami) -d template1 -c "CREATE DATABASE openhalo OWNER halo; ALTER USER halo WITH PASSWORD 'mysecret';"
+    echo "Creating the 'openhalo' database and setting the password for user 'halo'..."
+    # Execute SQL commands to create the DB and user
+    psql -h /tmp -U $(whoami) -d template1 -c "CREATE DATABASE openhalo OWNER halo; ALTER USER halo WITH PASSWORD 'mysecret';"
     
-    # Arrêter le serveur temporaire
+    # Stop the temporary server
     pg_ctl -D "$PGDATA" stop -m fast
-    echo "Arrêt du serveur temporaire. DB 'openhalo' créée."
-    # --- FIN DU NOUVEAU CODE AJOUTÉ ---
+    echo "Temporary server stopped. DB 'openhalo' created."
 fi
 
-echo "Démarrage du serveur PostgreSQL..."
-pg_ctl -D "$PGDATA" -l "$PGDATA/logfile" start
-
-# Attendre le démarrage du serveur (maintenant avec la DB 'openhalo' existante)
-until pg_isready -h localhost -p 5434 -U halo -d openhalo; do
-    echo "En attente de PostgreSQL..."
-    sleep 2
-done
-
-echo "PostgreSQL est prêt."
-
-# Garder le conteneur vivant
-tail -f "$PGDATA/logfile"
+# Final Start of OpenHalo Server
+echo "Starting PostgreSQL server..."    
+# Use 'exec' so that the PostgreSQL process becomes PID 1 in the container.
+# We pass the configuration via the command line to ensure listen_addresses='*' is applied.
+exec $HALO_HOME/bin/postgres -D "$PGDATA" -c "listen_addresses='*'" -c "port=5434"
