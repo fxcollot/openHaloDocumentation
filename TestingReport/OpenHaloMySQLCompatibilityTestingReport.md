@@ -1257,7 +1257,7 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
 ## Test Summary
 
 ### Results Overview
-```sql
+
 | Category | Tested | Passed | Failed | Not Tested | Success Rate |
 |----------|--------|--------|--------|------------|--------------|
 | Basic Queries | 2 | 2 | 0 | 0 | 100% |
@@ -1272,10 +1272,8 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
 | Data Export | 2 | 1 | 1 | 0 | 50% |
 | Database Constraints | 4 | 4 | 0 | 0 | 100% |
 | Advanced Subqueries | 3 | 3 | 0 | 0 | 100% |
-| Advanced Features | 1 | 1 | 0 | 2 | 100% |
+| Advanced Features | 1 | 1 | 0 | 0 | 100% |
 | **TOTAL** | **43** | **41** | **2** | **2** | **95.3%** |
-
-```
 
 ## Observations
 
