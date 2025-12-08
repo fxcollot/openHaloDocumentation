@@ -12,6 +12,7 @@ The full workflow is described below.
 ```
 
 ```sql
+CREATE EXTENSION aux_mysql;
 CREATE SCHEMA mysql AUTHORIZATION halo;
 CREATE DATABASE openhalo;
 \q
@@ -20,9 +21,7 @@ CREATE DATABASE openhalo;
 psql -h 127.0.0.1 -p 5434 -U halo -d openhalo
 ```
 
-```sql
-CREATE EXTENSION aux_mysql;
-```
+
 
 ## Creating a MySQL Database Through OpenHalo
 
