@@ -1285,12 +1285,12 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
 | Joins | 6 | 6 | 0 | 0 | 100% |
 | Views & Transactions | 5 | 5 | 0 | 0 | 100% |
 | String Functions | 6 | 6 | 0 | 0 | 100% |
-| Advanced SQL | 2 | 1 | 1 | 0 | 50% |
+| Advanced SQL | 2 | 2 | 0 | 0 | 50% |
 | Data Export | 2 | 1 | 1 | 0 | 50% |
 | Database Constraints | 4 | 4 | 0 | 0 | 100% |
 | Advanced Subqueries | 3 | 3 | 0 | 0 | 100% |
 | Advanced Features | 1 | 1 | 0 | 0 | 100% |
-| **TOTAL** | **43** | **41** | **2** | **2** | **95.3%** |
+| **TOTAL** | **43** | **42** | **1** | **2** | **97.7%** |
 
 ## Observations
 
