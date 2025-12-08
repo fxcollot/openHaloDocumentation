@@ -20,8 +20,8 @@ A comprehensive test suite validating MySQL protocol compatibility and standard 
 - [Advanced Subqueries](#advanced-subqueries)
 - [Data Export](#data-export)
 - [Advanced Features](#advanced-features)
-- [Test Summary](#test-summary)
 - [Problematic Queries](#problematic-queries)
+- [Test Summary](#test-summary)
 - [Observations](#observations)
 
 
@@ -31,8 +31,8 @@ A comprehensive test suite validating MySQL protocol compatibility and standard 
 
 **System Configuration:**
 - **OpenHalo Version:** 1.0.14.18 (251127)
-- **Operating Systems:** Ubuntu 24.04.3 LTS on WSL2/MacOS Tahoe 26.0
-- **MySQL Client:** 5.7.32
+- **Operating System:** Ubuntu 24.04.3 LTS on WSL2
+- **MySQL Client:** 8.0.x
 - **Test Duration:** November 27 - December 3, 2025
 
 **Connection Details:**
@@ -862,42 +862,25 @@ FROM name_basics LIMIT 10;
 
 ```sql
 
-(SELECT primaryname AS name, 'Actor' AS type
- FROM name_basics
- WHERE primaryprofession = 'actor'
- LIMIT 5)
+SELECT primaryname AS name, 'Actor' AS type
+FROM name_basics
+WHERE primaryprofession = 'actor'
+LIMIT 5
 UNION
-(SELECT primaryname AS name, 'Actress' AS type
- FROM name_basics
- WHERE primaryprofession = 'actress'
- LIMIT 5);
+SELECT primaryname AS name, 'Actress' AS type
+FROM name_basics
+WHERE primaryprofession = 'actress'
+LIMIT 5;
 
 ```
 
-**Status:**  **PASSED**  
-**Sample Output:** 
-```sql
-+--------------------+---------+
-| name               | type    |
-+--------------------+---------+
-| Pamela Bellwood    | Actress |
-| Mikhail Kozlovsky  | Actor   |
-| Petri Aalto        | Actor   |
-| Maxine Bahns       | Actress |
-| Kate Reid          | Actress |
-| Matt Lyon          | Actor   |
-| Christopher Prince | Actor   |
-| Joanna Pacula      | Actress |
-| Timm Zemanek       | Actor   |
-| Belinda Bauer      | Actress |
-+--------------------+---------+
-10 rows in set (0.02 sec)
-
-```
+**Status:**  **FAILED**  
+**Error:** `ERROR 1478 (HY000): syntax error at or near "UNION"`
 
 **Notes:**
-- UNION operator works correctly.
--Successfully combines result sets from multiple queries
+- UNION operator not supported in OpenHalo
+- Alternative: Use separate queries or combine with application logic
+- Limitation for MySQL migrations requiring UNION
 
 ---
 
@@ -1270,27 +1253,6 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
 
 ---
 
-
-## Test Summary
-
-### Results Overview
-
-| Category | Tested | Passed | Failed | Not Tested | Success Rate |
-|----------|--------|--------|--------|------------|--------------|
-| Basic Queries | 2 | 2 | 0 | 0 | 100% |
-| Filtering/Sorting | 1 | 1 | 0 | 0 | 100% |
-| Aggregations | 4 | 4 | 0 | 0 | 100% |
-| CRUD Operations | 4 | 4 | 0 | 0 | 100% |
-| Indexes | 3 | 3 | 0 | 0 | 100% |
-| Joins | 6 | 6 | 0 | 0 | 100% |
-| Views & Transactions | 5 | 5 | 0 | 0 | 100% |
-| String Functions | 6 | 6 | 0 | 0 | 100% |
-| Advanced SQL | 2 | 2 | 0 | 0 | 50% |
-| Data Export | 2 | 1 | 1 | 0 | 50% |
-| Database Constraints | 4 | 4 | 0 | 0 | 100% |
-| Advanced Subqueries | 3 | 3 | 0 | 0 | 100% |
-| Advanced Features | 1 | 1 | 0 | 0 | 100% |
-| **TOTAL** | **43** | **42** | **1** | **0** | **97.7%** |
 
 ## Observations
 
@@ -1876,6 +1838,39 @@ All of the features above are documented in the official MySQL 5.7 Reference Man
 
 
 ---
+
+## Test Summary
+
+### Results Overview
+
+| Category             | Tested | Passed | Failed | Success Rate |
+|----------------------|--------|--------|--------|--------------|
+| Basic Queries        | 2      | 2      | 0      | 100%         |
+| Filtering/Sorting    | 1      | 1      | 0      | 100%         |
+| Aggregations         | 4      | 4      | 0      | 100%         |
+| CRUD Operations      | 4      | 4      | 0      | 100%         |
+| Indexes              | 3      | 3      | 0      | 100%         |
+| Joins                | 6      | 6      | 0      | 100%         |
+| Views & Transactions | 5      | 5      | 0      | 100%         |
+| String Functions     | 6      | 6      | 0      | 100%         |
+| Advanced SQL         | 2      | 2      | 0      | 100%         |
+| Data Export          | 3      | 1      | 2      | 33.3%        |
+| Database Constraints | 4      | 4      | 0      | 100%         |
+| Advanced Subqueries  | 3      | 3      | 0      | 100%         |
+| Advanced Features    | 1      | 1      | 0      | 100%         |
+| JSON Functions       | 1      | 0      | 1      | 0%           |
+| Multi-table DELETE   | 1      | 0      | 1      | 0%           |
+| Index Hints          | 1      | 0      | 1      | 0%           |
+| Partitioning         | 1      | 0      | 1      | 0%           |
+| Stored Procedures    | 1      | 0      | 1      | 0%           |
+| FULLTEXT Search      | 1      | 0      | 1      | 0%           |
+| Spatial Functions    | 1      | 0      | 1      | 0%           |
+| HANDLER Commands     | 1      | 0      | 1      | 0%           |
+| SHOW TABLE STATUS    | 1      | 0      | 1      | 0%           |
+| GET DIAGNOSTICS      | 1      | 0      | 1      | 0%           |
+| **TOTAL**            | **56** | **41** | **15** | **73.2%**    |
+
+
 
 
 
