@@ -1870,7 +1870,7 @@ All of the features above are documented in the official MySQL 5.7 Reference Man
 | GET DIAGNOSTICS      | 1      | 0      | 1      | 0%           |
 | **TOTAL**            | **56** | **41** | **15** | **73.2%**    |
 
-
+---
 
 ## Appendix: Quick Reference
 
