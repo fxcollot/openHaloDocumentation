@@ -1871,7 +1871,7 @@ ERROR 1478 (HY000): syntax error at or near "INTO"
 
 **Verdict**  
 
-`SELECT ... INTO OUTFILE` is supported and works as documented in MySQL 5.7.32. [web:238][web:239]  
+`SELECT ... INTO OUTFILE` is supported and works as documented in MySQL 5.7.32. 
 
 OpenHalo does not support the `INTO OUTFILE` clause in SELECT statements via the MySQL protocol (syntax error at `INTO`).
 
