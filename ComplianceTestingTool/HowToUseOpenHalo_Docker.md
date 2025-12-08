@@ -28,7 +28,7 @@ psql -h 127.0.0.1 -p 5434 -U halo -d openhalo
 Connect to MySQL client halo (port 3308) : 
 
 ```bash
-  mysql -h openhalo -P 3308 -u halo -p openhalo
+  mysql -h openhalo -P 3308 -u halo -p
 ```
 Enter the password predetermined, here : halopass
 
