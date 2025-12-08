@@ -1,6 +1,7 @@
 """
-OpenHalo Performance Testing Pipeline - Dual Comparison
+OpenHalo Performance & Compatibility Testing Pipeline
 Tests queries using OpenHalo and a standard MySQL database for comparison.
+Integrated with Markdown Report Test Suite.
 """
 
 import time
@@ -40,7 +41,7 @@ class DualDatabaseConnector:
         print("Attempting to connect to OpenHalo...")
         try:
             self.openhalo_conn = mysql.connector.connect(**self.openhalo_config)
-            self.openhalo_conn.autocommit = False
+            self.openhalo_conn.autocommit = False # Important pour les tests de transaction
             print("✓ Connected to OpenHalo (Port: {})".format(self.openhalo_config['port']))
         except Exception as e:
             print(f"✗ OpenHalo connection failed: {e}")
@@ -53,7 +54,6 @@ class DualDatabaseConnector:
             print("✓ Connected to MySQL (Port: {})".format(self.mysql_config['port']))
         except Exception as e:
             print(f"✗ MySQL connection failed: {e}")
-            # Ne sort pas du programme si MySQL échoue, mais continue avec OpenHalo seul
             print("Warning: Continuing tests with OpenHalo only.")
     
     def close(self):
@@ -64,13 +64,10 @@ class DualDatabaseConnector:
             self.mysql_conn.close()
             print("Closed MySQL connection.")
 
-# --- Schema Inspector (Nouveau pour les Tests Dynamiques) ---
+# --- Schema Inspector ---
 
 class SchemaInspector:
     """Simule l'inspection du schéma pour générer des requêtes dynamiques."""
-    
-    # Information du schéma basée sur l'utilisation courante de IMDB 'name_basics'
-    # NOTE: Si votre table a des colonnes différentes, modifiez ces listes.
     SCHEMA = {
         'name_basics': {
             'numeric_columns': ['birthYear', 'deathYear'],
@@ -81,7 +78,6 @@ class SchemaInspector:
     
     @staticmethod
     def get_columns(table: str, type_filter: str) -> List[str]:
-        """Retourne les colonnes selon le type spécifié."""
         if type_filter == 'numeric':
             return SchemaInspector.SCHEMA.get(table, {}).get('numeric_columns', [])
         elif type_filter == 'string':
@@ -93,7 +89,7 @@ class SchemaInspector:
 # --- Dual Query Tester ---
 
 class DualQueryTester:
-    def __init__(self, db_connector: DualDatabaseConnector, iterations: int = 10, warmup: int = 3):
+    def __init__(self, db_connector: DualDatabaseConnector, iterations: int = 5, warmup: int = 1):
         self.db = db_connector
         self.iterations = iterations
         self.warmup = warmup
@@ -104,488 +100,482 @@ class DualQueryTester:
         cursor = conn.cursor()
         try:
             start = time.perf_counter()
+            # Handle multiple statements if necessary, though simpler is better for timing
             cursor.execute(query)
             
-            # Récupérer résultats pour SELECT et WITH (CTE)
             query_upper = query.strip().upper()
-            if query_upper.startswith('SELECT') or query_upper.startswith('WITH') or query_upper.startswith('CALL'):
-                results = cursor.fetchall()
+            if any(query_upper.startswith(x) for x in ['SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'CALL', 'CHECK']):
+                try:
+                    results = cursor.fetchall()
+                except mysql.connector.Error as e:
+                    # Some queries like CALL might not return fetchable results depending on the proc
+                    if "No result set" in str(e):
+                        results = []
+                    else:
+                        raise e
             else:
-                # For modification queries (INSERT, UPDATE, DELETE, DDL)
                 results = []
-                # Commit is crucial for DML/DDL tests
                 conn.commit() 
             
             end = time.perf_counter()
             return results, (end - start) * 1000  # ms
             
         except mysql.connector.Error as e:
+            # Ne pas rollback systématiquement ici pour permettre de tester les erreurs transactionnelles
+            # mais on rollback en cas d'erreur fatale pour nettoyer la connection
             conn.rollback()
             raise e
         finally:
             cursor.close()
 
-    def warmup_query(self, query: str, conn):
-        for _ in range(self.warmup):
-            try:
-                # Use a specific limit for warming up to keep it fast
-                if query.strip().upper().startswith('SELECT') and 'LIMIT' not in query.upper():
-                    warmup_query = f"{query.rstrip(';')} LIMIT 1;"
-                else:
-                    warmup_query = query
-                
-                self.execute_query(warmup_query, conn)
-            except Exception:
-                pass
-
     def classify_performance(self, mean_time: float) -> str:
-        if mean_time <= 50:
-            return "OK"
-        elif mean_time <= 200:
-            return "Warning"
-        else:
-            return "Problem"
+        if mean_time <= 50: return "OK"
+        elif mean_time <= 200: return "Warning"
+        else: return "Problem"
 
     def test_single_target(self, target: str, conn, query_id: str, query_type: str, query: str, skip: bool):
-        """Helper to run the test on a single connection."""
         times = []
         rows_count = 0
 
         if skip:
-            return QueryResult(
-                target=target,
-                query_id=query_id,
-                query_type=query_type,
-                times=[],
-                mean_time=0,
-                median_time=0,
-                status="Skipped",
-                rows=0,
-                error="Query type not tested"
-            )
+            return QueryResult(target, query_id, query_type, [], 0, 0, "Skipped", 0, "Query type not tested")
 
         try:
-            # Warmup
-            self.warmup_query(query, conn)
+            # Warmup (only for SELECTs to avoid side effects on INSERTs)
+            is_select = query.strip().upper().startswith(('SELECT', 'WITH', 'SHOW'))
+            if is_select and self.warmup > 0:
+                try:
+                    warmup_q = f"{query.rstrip(';')} LIMIT 1;" if 'LIMIT' not in query.upper() and 'SHOW' not in query.upper() else query
+                    self.execute_query(warmup_q, conn)
+                except Exception:
+                    pass 
+
+            # Iterations (1 for non-selects to avoid duplicates errors, self.iterations for SELECTs)
+            run_count = self.iterations if is_select else 1
             
-            # Mesures
-            for _ in range(self.iterations):
+            for _ in range(run_count):
                 results, elapsed = self.execute_query(query, conn)
                 times.append(elapsed)
-                if rows_count == 0 and (query.strip().upper().startswith('SELECT') or query.strip().upper().startswith('WITH')):
-                    rows_count = len(results)
+                if rows_count == 0:
+                    rows_count = len(results) if results else 0
             
             mean_time = mean(times)
             median_time = median(times)
             status = self.classify_performance(mean_time)
             
-            print(f"  [{target}] Mean: {mean_time:.2f}ms, Median: {median_time:.2f}ms, Rows: {rows_count}, Status: {status}")
-            return QueryResult(
-                target=target,
-                query_id=query_id,
-                query_type=query_type,
-                times=times,
-                mean_time=mean_time,
-                median_time=median_time,
-                status=status,
-                rows=rows_count
-            )
+            print(f"  [{target}] Mean: {mean_time:.2f}ms, Rows: {rows_count}, Status: {status}")
+            return QueryResult(target, query_id, query_type, times, mean_time, median_time, status, rows_count)
             
         except Exception as e:
             error_msg = str(e)
             status = "Error"
-            error = error_msg
-            symbol = "✗"
             
-            if "Unread result found" in error_msg:
-                status = "Unsupported"
-                error = f"{target} may not support this query type: {error_msg}"
-                symbol = "⚠"
+            # Détection spécifique pour le rapport de compatibilité
+            if "syntax error" in error_msg.lower():
+                status = "SyntaxError"
+            elif "doesn't exist" in error_msg.lower() or "unknown" in error_msg.lower():
+                status = "MissingFeature"
             
-            print(f"  [{target}] {symbol} {status}: {error}")
-            return QueryResult(
-                target=target,
-                query_id=query_id,
-                query_type=query_type,
-                times=[],
-                mean_time=0,
-                median_time=0,
-                status=status,
-                rows=0,
-                error=error
-            )
+            print(f"  [{target}] ✗ {status}: {error_msg.splitlines()[0][:100]}...")
+            return QueryResult(target, query_id, query_type, [], 0, 0, status, 0, error_msg)
 
     def test_query(self, query_id: str, query_type: str, query: str, skip: bool = False):
-        """Run the test on both OpenHalo and MySQL."""
         print(f"\nTesting: {query_id} ({query_type})")
         
         # Test OpenHalo
-        openhalo_result = self.test_single_target(
-            target='OpenHalo',
-            conn=self.db.openhalo_conn,
-            query_id=query_id,
-            query_type=query_type,
-            query=query,
-            skip=skip
-        )
-        self.results.append(openhalo_result)
+        oh_res = self.test_single_target('OpenHalo', self.db.openhalo_conn, query_id, query_type, query, skip)
+        self.results.append(oh_res)
 
-        # Test MySQL if connected
+        # Test MySQL
         if self.db.mysql_conn:
-            mysql_result = self.test_single_target(
-                target='MySQL',
-                conn=self.db.mysql_conn,
-                query_id=query_id,
-                query_type=query_type,
-                query=query,
-                # MySQL should not skip the same query unless explicitly told so
-                skip=False
-            )
-            self.results.append(mysql_result)
+            mysql_res = self.test_single_target('MySQL', self.db.mysql_conn, query_id, query_type, query, False)
+            self.results.append(mysql_res)
 
-    def generate_report(self, output_file: str = "openhalo_comparison_results.json"):
+    def generate_report(self, output_file: str = "openhalo_full_compatibility_report.json"):
         print("\n" + "="*60)
-        print("DUAL TEST REPORT (OpenHalo vs MySQL)")
+        print("FULL COMPATIBILITY REPORT GENERATION")
         print("="*60)
         
-        # Helper function for printing summary
-        def print_summary(target: str, all_results: List[QueryResult]):
-            target_results = [r for r in all_results if r.target == target]
-            total = len(target_results)
-            if total == 0:
-                print(f"\nNo results for {target}.")
-                return
-
-            ok_count = sum(1 for r in target_results if r.status == "OK")
-            warning_count = sum(1 for r in target_results if r.status == "Warning")
-            problem_count = sum(1 for r in target_results if r.status == "Problem")
-            error_count = sum(1 for r in target_results if r.status == "Error")
-            unsupported_count = sum(1 for r in target_results if r.status == "Unsupported")
-            skipped_count = sum(1 for r in target_results if r.status == "Skipped")
-
-            print(f"\n--- {target} Summary (Total: {total}) ---")
-            print(f"  OK:          {ok_count} ({ok_count/total*100:.1f}%)")
-            print(f"  Warning:     {warning_count} ({warning_count/total*100:.1f}%)")
-            print(f"  Problem:     {problem_count} ({problem_count/total*100:.1f}%)")
-            print(f"  Unsupported: {unsupported_count} ({unsupported_count/total*100:.1f}%)")
-            print(f"  Error:       {error_count} ({error_count/total*100:.1f}%)")
-            print(f"  Skipped:     {skipped_count} ({skipped_count/total*100:.1f}%)")
-
-            if unsupported_count + error_count > 0:
-                print(f"\n--- {target} Issues ---")
-                for r in target_results:
-                    if r.status in ["Unsupported", "Error"]:
-                        print(f"  {r.query_id} ({r.query_type}): {r.status} - {r.error[:60]}...")
-        
-        # Print summaries
-        print_summary('OpenHalo', self.results)
-        print_summary('MySQL', self.results)
-        
-        # Regenerate summary data for clean JSON
-        results_openhalo = [r for r in self.results if r.target == 'OpenHalo']
-        results_mysql = [r for r in self.results if r.target == 'MySQL']
-
         output_data = {
-            'summary_openhalo': {
-                "total": len(results_openhalo),
-                "ok": sum(1 for r in results_openhalo if r.status == "OK"),
-                "warning": sum(1 for r in results_openhalo if r.status == "Warning"),
-                "problem": sum(1 for r in results_openhalo if r.status == "Problem"),
-                "error": sum(1 for r in results_openhalo if r.status == "Error"),
-                "unsupported": sum(1 for r in results_openhalo if r.status == "Unsupported"),
-                "skipped": sum(1 for r in results_openhalo if r.status == "Skipped")
-            },
-            'summary_mysql': {
-                "total": len(results_mysql),
-                "ok": sum(1 for r in results_mysql if r.status == "OK"),
-                "warning": sum(1 for r in results_mysql if r.status == "Warning"),
-                "problem": sum(1 for r in results_mysql if r.status == "Problem"),
-                "error": sum(1 for r in results_mysql if r.status == "Error"),
-                "unsupported": sum(1 for r in results_mysql if r.status == "Unsupported"),
-                "skipped": sum(1 for r in results_mysql if r.status == "Skipped")
-            },
+            "meta": {"timestamp": time.time()},
             "queries": [asdict(r) for r in self.results]
         }
 
-
         with open(output_file, 'w') as f:
             json.dump(output_data, f, indent=2)
-        print(f"\n✓ Full comparison report saved to {output_file}")
+        print(f"\n✓ Report saved to {output_file}")
+    
+    def generate_summary(self):
+        print("\n" + "=" * 60)
+        print("SYNTHESIS REPORT – USEFUL METRICS")
+        print("=" * 60)
+
+        oh = [r for r in self.results if r.target == "OpenHalo"]
+        mysql = [r for r in self.results if r.target == "MySQL"]
+
+        oh_map = {r.query_id: r for r in oh}
+        mysql_map = {r.query_id: r for r in mysql}
+
+        # ---- Global success stats ----
+        print("\n📌 OpenHalo execution summary")
+        print(f"  Total queries tested : {len(oh)}")
+        print(f"  ✅ OK                : {sum(r.status == 'OK' for r in oh)}")
+        print(f"  ⚠ Problems           : {sum(r.status == 'Problem' for r in oh)}")
+        print(f"  ❌ Errors             : {sum(r.status in ('Error','SyntaxError','MissingFeature') for r in oh)}")
+
+        # ---- Slowest OpenHalo queries ----
+        slow_oh = sorted(
+            [r for r in oh if r.mean_time > 0],
+            key=lambda r: r.mean_time,
+            reverse=True
+        )[:10]
+
+        print("\n🐢 Top 10 slowest OpenHalo queries")
+        for r in slow_oh:
+            print(f"  {r.query_id:<15} {r.mean_time:>8.2f} ms  ({r.query_type})")
+
+        # ---- MySQL faster than OpenHalo ----
+        print("\n⚡ Queries faster on MySQL than OpenHalo")
+        for qid, oh_r in oh_map.items():
+            my_r = mysql_map.get(qid)
+            if not my_r or oh_r.mean_time == 0 or my_r.mean_time == 0:
+                continue
+
+            delta = oh_r.mean_time - my_r.mean_time
+            if delta > 5:
+                print(
+                    f"  {qid:<15} OH={oh_r.mean_time:>7.2f} ms | "
+                    f"MySQL={my_r.mean_time:>7.2f} ms → Δ {delta:.2f} ms"
+                )
+
+        # ---- Missing / unsupported features ----
+        print("\n🚫 Unsupported / failing features on OpenHalo")
+        for r in oh:
+            if r.status in ("MissingFeature", "SyntaxError"):
+                print(f"  {r.query_id:<15} {r.query_type} → {r.status}")
+
+        # ---- Averages ----
+        oh_times = [r.mean_time for r in oh if r.mean_time > 0]
+        my_times = [r.mean_time for r in mysql if r.mean_time > 0]
+
+        print("\n📊 Average execution time")
+        if oh_times:
+            print(f"  OpenHalo : {mean(oh_times):.2f} ms")
+        if my_times:
+            print(f"  MySQL    : {mean(my_times):.2f} ms")
+
+        print("\n✅ End of synthesis report")
 
 
 def main():
     # --- Configuration ---
-    # Configuration OpenHalo (Port 3306 par défaut)
-    openhalo_config = {
-        'host': 'localhost',
-        'port': 3306,
-        'user': 'halo',
-        'password': 'halo',
-        'database': 'testdb'
-    }
-    # Configuration MySQL standard (Port 3309 confirmé)
-    mysql_config = {
-        'host': 'localhost',
-        'port': 3309, 
-        'user': 'halo',
-        'password': 'halo',
-        'database': 'testdb'
-    }
+    openhalo_config = {'host': 'localhost', 'port': 3306, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
+    mysql_config = {'host': 'localhost', 'port': 3309, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
     
     # --- Setup ---
     print("="*60)
-    print("OpenHalo vs MySQL Performance Comparison - Dynamic Testing")
+    print("OpenHalo vs MySQL - Full Markdown Compatibility Suite")
     print("="*60)
 
     db = DualDatabaseConnector(openhalo_config, mysql_config)
     db.connect()
 
-    tester = DualQueryTester(db, iterations=10, warmup=2)
+    # Reduced iterations for compatibility check
+    tester = DualQueryTester(db, iterations=3, warmup=1)
     
-    # Create a unique ID for modification tests to prevent constraint errors
-    unique_id = str(uuid.uuid4())[:8]
-    test_table = "name_basics" # Table principale à tester
+    table_nb = "name_basics"
+    
+    # =========================================================================
+    # TESTS FROM MARKDOWN REPORT
+    # =========================================================================
 
-    # --- Test Queries ---
+    # --- 1. Basic Queries ---
+    print("\n--- 1. Basic Queries ---")
+    tester.test_query("md_1.1", "Simple Field Query", 
+        f"SELECT * FROM {table_nb} WHERE primaryprofession = 'actor';")
     
-    # ========================================
-    # 3.1 Static Selection Queries (Simple)
-    # ========================================
-    print("\n" + "="*60)
-    print("3.1 Static Selection Queries (Simple)")
-    print("="*60)
-    
-    tester.test_query("select_simple", "Simple SELECT", 
-        f"SELECT * FROM {test_table} LIMIT 10;")
-    
-    tester.test_query("select_with_condition", "SELECT with WHERE", 
-        f"SELECT * FROM {test_table} WHERE birthYear > 1980 LIMIT 10;")
-    
-    tester.test_query("select_projection", "SELECT specific columns", 
-        f"SELECT nconst, primaryName, primaryProfession FROM {test_table} LIMIT 10;")
-    
-    tester.test_query("select_like", "SELECT with LIKE", 
-        f"SELECT * FROM {test_table} WHERE primaryProfession LIKE '%actor%' LIMIT 10;")
-    
-    tester.test_query("select_aggregate", "Aggregates (GROUP BY/AVG/COUNT)", 
-        f"SELECT COUNT(*), AVG(birthYear) FROM {test_table} GROUP BY primaryProfession LIMIT 10;")
-    
-    tester.test_query("select_subquery", "Subquery IN", 
-        f"SELECT * FROM {test_table} WHERE nconst IN (SELECT nconst FROM {test_table} LIMIT 5);")
-    
-    tester.test_query("self_inner_join", "Self JOIN", 
-        f"SELECT a.nconst, b.primaryName FROM {test_table} a INNER JOIN {test_table} b ON a.nconst = b.nconst LIMIT 5;")
+    tester.test_query("md_1.2", "Multi-Criteria Pattern Match", 
+        f"SELECT * FROM {table_nb} WHERE birthyear > 1970 AND primaryprofession LIKE '%actor%';")
 
-    # --- NOUVELLE SECTION DE TESTS PLUS COMPLEXES ---
+    # --- 2. Filtering and Sorting ---
+    print("\n--- 2. Filtering and Sorting ---")
+    tester.test_query("md_2.1", "ORDER BY Multiple Conditions", 
+        f"SELECT primaryname, birthyear, primaryprofession FROM {table_nb} WHERE deathyear IS NULL AND birthyear IS NOT NULL ORDER BY birthyear ASC LIMIT 10;")
+
+    # --- 3. Aggregation and Statistics ---
+    print("\n--- 3. Aggregation and Statistics ---")
+    tester.test_query("md_3.1", "GROUP BY with COUNT", 
+        f"SELECT primaryprofession, COUNT(*) AS total FROM {table_nb} GROUP BY primaryprofession ORDER BY total DESC LIMIT 10;")
+
+    tester.test_query("md_3.2", "AVG Aggregation Multi Column", 
+        f"SELECT primaryprofession, AVG(birthyear) AS avg_birthyear, COUNT(*) AS total FROM {table_nb} WHERE birthyear IS NOT NULL GROUP BY primaryprofession ORDER BY total DESC LIMIT 10;")
+
+    tester.test_query("md_3.3", "MIN/MAX Functions", 
+        f"SELECT MAX(birthyear) AS most_recent, MIN(birthyear) AS oldest FROM {table_nb} WHERE birthyear IS NOT NULL;")
+
+    tester.test_query("md_3.4", "Advanced Grouping (FLOOR)", 
+        f"SELECT FLOOR(birthyear/10)*10 AS decade, COUNT(*) AS total FROM {table_nb} WHERE birthyear IS NOT NULL GROUP BY decade ORDER BY decade DESC;")
+
+    # --- 4. Data Manipulation (CRUD) ---
+    print("\n--- 4. Data Manipulation (CRUD) ---")
+    # Using specific ID from MD report: nm9999999
+    crud_id = 'nm9999999'
     
-    # ========================================
-    # 3.5 Complex Joins and Set Operations
-    # ========================================
-    print("\n" + "="*60)
-    print("3.5 Complex Joins and Set Operations")
-    print("="*60)
+    # Nettoyage préventif
+    tester.test_query("md_4.0_cleanup", "Pre-CRUD Cleanup", 
+        f"DELETE FROM {table_nb} WHERE nconst = '{crud_id}';")
+
+    tester.test_query("md_4.1", "INSERT Operation", 
+        f"INSERT INTO {table_nb} (nconst, primaryname, birthyear, deathyear, primaryprofession, knownfortitles) VALUES ('{crud_id}', 'Test Actor', 1990, NULL, 'actor', 'tt1234567');")
+
+    tester.test_query("md_4.2", "SELECT Verification", 
+        f"SELECT * FROM {table_nb} WHERE nconst = '{crud_id}';")
+
+    tester.test_query("md_4.3", "UPDATE Operation", 
+        f"UPDATE {table_nb} SET birthyear = 1985 WHERE nconst = '{crud_id}';")
+
+    tester.test_query("md_4.3_verify", "Verify UPDATE", 
+        f"SELECT birthyear FROM {table_nb} WHERE nconst = '{crud_id}';")
+
+    tester.test_query("md_4.4", "DELETE Operation", 
+        f"DELETE FROM {table_nb} WHERE nconst = '{crud_id}';")
+
+    # --- 5. Index Management ---
+    print("\n--- 5. Index Management ---")
+    # Note: These might fail if index already exists, usually fine in testing
+    try:
+        tester.test_query("md_5.1", "CREATE INDEX VARCHAR", 
+            f"CREATE INDEX idx_profession ON {table_nb}(primaryprofession);")
+    except: pass
+
+    try:
+        tester.test_query("md_5.2", "CREATE INDEX INT", 
+            f"CREATE INDEX idx_birthyear ON {table_nb}(birthyear);")
+    except: pass
     
-    tester.test_query("join_left", "LEFT JOIN", 
-        f"SELECT a.nconst, b.primaryName FROM {test_table} a LEFT JOIN {test_table} b ON a.nconst = b.nconst WHERE a.birthYear < 1960 LIMIT 5;")
+    tester.test_query("md_5.3", "SHOW INDEX", f"SHOW INDEX FROM {table_nb};")
+
+    # --- 6. Join Operations ---
+    print("\n--- 6. Join Operations ---")
+    # Prerequisite: films and film_actor tables must exist for these to pass
     
-    tester.test_query("join_triple", "Triple JOIN (Complex)", 
+    tester.test_query("md_6.1", "Multi-Table INNER JOIN", 
         f"""
-        SELECT 
-            T1.primaryName, T2.primaryName
-        FROM 
-            {test_table} T1 
-        INNER JOIN 
-            {test_table} T2 ON T1.birthYear = T2.birthYear
-        INNER JOIN 
-            {test_table} T3 ON T1.primaryProfession = T3.primaryProfession
-        WHERE T1.birthYear IS NOT NULL 
+        SELECT nb.primaryname, f.title, f.release_year 
+        FROM {table_nb} nb 
+        JOIN film_actor fa ON nb.nconst = fa.nconst 
+        JOIN films f ON fa.film_id = f.film_id 
         LIMIT 10;
         """)
 
-    tester.test_query("set_intersect_like", "Set Operation INTERSECT (via JOIN)", 
+    tester.test_query("md_6.2", "LEFT JOIN with Aggregation", 
         f"""
-        SELECT 
-            T1.nconst 
-        FROM 
-            {test_table} T1 
-        INNER JOIN 
-            {test_table} T2 ON T1.nconst = T2.nconst
-        WHERE 
-            T1.primaryProfession LIKE '%writer%' AND T2.primaryProfession LIKE '%director%'
-        LIMIT 10;
+        SELECT nb.primaryname, COUNT(fa.film_id) AS nb_films 
+        FROM {table_nb} nb 
+        LEFT JOIN film_actor fa ON nb.nconst = fa.nconst 
+        WHERE nb.birthyear > 1980 
+        GROUP BY nb.nconst, nb.primaryname 
+        ORDER BY nb_films DESC LIMIT 10;
         """)
-        
-    # ========================================
-    # 3.6 Scalar and Date/Time Functions
-    # ========================================
-    print("\n" + "="*60)
-    print("3.6 Scalar and Date/Time Functions")
-    print("="*60)
-    
-    # NOTE: Ces requêtes stressent les fonctions MySQL, souvent implémentées différemment dans OpenHalo
-    
-    tester.test_query("scalar_concat", "Scalar Function (CONCAT)", 
-        f"SELECT CONCAT(primaryName, ' (', birthYear, ')') FROM {test_table} LIMIT 10;")
-        
-    tester.test_query("scalar_string", "Scalar Function (SUBSTRING/LENGTH)", 
-        f"SELECT SUBSTRING(primaryName, 1, 5), LENGTH(primaryName) FROM {test_table} WHERE LENGTH(primaryName) > 10 LIMIT 10;")
 
-    # Simulation d'opérations date/time (nécessite une colonne date/datetime pour être parfaite, ici on utilise un calcul sur birthYear)
-    tester.test_query("scalar_math", "Scalar Function (Arithmetic)", 
-        f"SELECT (2023 - birthYear) AS age FROM {test_table} WHERE birthYear IS NOT NULL LIMIT 10;")
-        
-    tester.test_query("aggregate_distinct", "Aggregate with DISTINCT", 
-        f"SELECT COUNT(DISTINCT primaryProfession) FROM {test_table};")
-        
-    # ========================================
-    # 4.0 Dynamic Column-Based Queries
-    # ========================================
-    print("\n" + "="*60)
-    print("4.0 Dynamic Column-Based Queries")
-    print("="*60)
-    
-    # 4.1 Test de Projection (SELECT) sur toutes les colonnes
-    for col in SchemaInspector.get_columns(test_table, 'all'):
-        query_id = f"dynamic_proj_{col}"
-        query_type = f"SELECT projection on {col}"
-        query = f"SELECT {col} FROM {test_table} LIMIT 100;"
-        tester.test_query(query_id, query_type, query)
+    tester.test_query("md_6.3", "JOIN Multiple Conditions", 
+        f"""
+        SELECT nb.primaryname, f.title, f.rating, fa.role 
+        FROM {table_nb} nb 
+        JOIN film_actor fa ON nb.nconst = fa.nconst 
+        JOIN films f ON fa.film_id = f.film_id 
+        WHERE f.rating > 7.0 AND nb.primaryprofession LIKE '%actor%' 
+        ORDER BY f.rating DESC LIMIT 10;
+        """)
 
-    # 4.2 Test de Condition (WHERE) sur colonnes String
-    for col in SchemaInspector.get_columns(test_table, 'string'):
-        if col != 'nconst': # Skip nconst for LIKE test simplicity
-            query_id = f"dynamic_where_like_{col}"
-            query_type = f"SELECT WHERE LIKE on {col}"
-            # Utilise une recherche partielle pour forcer un scan ou une utilisation d'index plus complexe
-            query = f"SELECT {col}, primaryName FROM {test_table} WHERE {col} LIKE '%actor%' LIMIT 10;"
-            tester.test_query(query_id, query_type, query)
+    tester.test_query("md_6.4", "SELF JOIN", 
+        "SELECT f1.title AS film1, f2.title AS film2, f1.genre FROM films f1 JOIN films f2 ON f1.genre = f2.genre AND f1.film_id < f2.film_id LIMIT 10;")
 
-    # 4.3 Test de Condition (WHERE) sur colonnes Numériques
-    for col in SchemaInspector.get_columns(test_table, 'numeric'):
-        query_id = f"dynamic_where_num_{col}"
-        query_type = f"SELECT WHERE > on {col}"
-        # Utilise une condition d'inégalité simple
-        query = f"SELECT {col}, primaryName FROM {test_table} WHERE {col} > 1980 LIMIT 100;"
-        tester.test_query(query_id, query_type, query)
+    tester.test_query("md_6.5", "JOIN with HAVING and DISTINCT", 
+        f"""
+        SELECT nb.primaryname, COUNT(DISTINCT f.genre) AS nb_genres 
+        FROM {table_nb} nb 
+        JOIN film_actor fa ON nb.nconst = fa.nconst 
+        JOIN films f ON fa.film_id = f.film_id 
+        GROUP BY nb.nconst, nb.primaryname 
+        HAVING COUNT(DISTINCT f.genre) > 1 LIMIT 10;
+        """)
 
-    # 4.4 Test d'Agrégation (GROUP BY) sur toutes les colonnes String
-    for col in SchemaInspector.get_columns(test_table, 'string'):
-        query_id = f"dynamic_groupby_{col}"
-        query_type = f"SELECT COUNT GROUP BY on {col}"
-        # Compte les occurrences par catégorie de chaîne
-        query = f"SELECT {col}, COUNT(*) FROM {test_table} GROUP BY {col} LIMIT 10;"
-        tester.test_query(query_id, query_type, query)
-    
-    # ========================================
-    # 4.5 Dynamic Modification Query (Transactional Test)
-    # ========================================
-    print("\n" + "="*60)
-    print("4.5 Dynamic Modification Query (INSERT/UPDATE/DELETE)")
-    print("="*60)
-    
-    # Crée une table de test temporaire pour les modifications
-    temp_table = f"temp_test_{unique_id}"
-    create_query = f"""
-    CREATE TABLE IF NOT EXISTS {temp_table} (
-        id VARCHAR(10) PRIMARY KEY,
-        name VARCHAR(255),
-        val INT
-    );
-    """
-    
-    # Exécuter la création de table sur les deux connexions (Étape de préparation)
-    print(f"  > Creating temporary table: {temp_table}")
-    for conn_name, conn in [('OpenHalo', db.openhalo_conn), ('MySQL', db.mysql_conn)]:
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(create_query)
-                conn.commit()
-                cursor.close()
-                print(f"  [{conn_name}] Temp table created/verified.")
-            except Exception as e:
-                print(f"  [{conn_name}] ✗ Failed to create temp table: {e}")
+    tester.test_query("md_6.6", "Subquery with JOIN", 
+        f"""
+        SELECT f.title, f.rating 
+        FROM films f 
+        WHERE f.film_id IN (
+            SELECT fa.film_id 
+            FROM film_actor fa 
+            JOIN {table_nb} nb ON fa.nconst = nb.nconst 
+            WHERE nb.birthyear < 1950
+        ) LIMIT 10;
+        """)
 
-    # INSERT/UPDATE/DELETE sur la table dynamique temporaire
-    insert_query = f"INSERT INTO {temp_table} (id, name, val) VALUES ('{unique_id}', 'Dynamic Test', 100);"
-    tester.test_query("modification_insert_dyn", "INSERT (Dynamic)", insert_query, skip=False)
+    # --- 7. Views and Transactions ---
+    print("\n--- 7. Views and Transactions ---")
     
-    update_query = f"UPDATE {temp_table} SET val = 200 WHERE id = '{unique_id}';"
-    tester.test_query("modification_update_dyn", "UPDATE (Dynamic)", update_query, skip=False)
+    tester.test_query("md_7.1", "CREATE VIEW", 
+        f"CREATE OR REPLACE VIEW actor_summary AS SELECT primaryname, birthyear, primaryprofession FROM {table_nb} WHERE primaryprofession = 'actor' ORDER BY birthyear DESC;")
     
-    delete_query = f"DELETE FROM {temp_table} WHERE id = '{unique_id}';"
-    tester.test_query("modification_delete_dyn", "DELETE (Dynamic)", delete_query, skip=False)
+    tester.test_query("md_7.2", "Query VIEW", "SELECT * FROM actor_summary LIMIT 10;")
     
-    # Nettoyage de la table temporaire (Étape de nettoyage)
-    drop_query = f"DROP TABLE {temp_table};"
-    print(f"  > Dropping temporary table: {temp_table}")
-    for conn_name, conn in [('OpenHalo', db.openhalo_conn), ('MySQL', db.mysql_conn)]:
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(drop_query)
-                conn.commit()
-                cursor.close()
-                print(f"  [{conn_name}] Temp table dropped.")
-            except Exception as e:
-                print(f"  [{conn_name}] ✗ Failed to drop temp table: {e}")
+    tester.test_query("md_7.3", "DROP VIEW", "DROP VIEW actor_summary;")
 
-    # ========================================
-    # 3.3 Complex Queries (CTE/Window/Set Ops)
-    # ========================================
-    print("\n" + "="*60)
-    print("3.3 Complex Queries (CTE/Window/Set Ops)")
-    print("="*60)
+    # Transactions (using explicit SQL though connectors handle this via autocommit settings)
+    # Note: Explicit START TRANSACTION inside execute might behave differently depending on connector,
+    # but we are testing if the database accepts the syntax.
+    trans_id = 'nm8888888'
+    
+    # 7.4 Commit
+    tester.test_query("md_7.4_a", "Transaction START", "START TRANSACTION;")
+    tester.test_query("md_7.4_b", "Transaction INSERT", f"INSERT INTO {table_nb} (nconst, primaryname, birthyear) VALUES ('{trans_id}', 'Trans Test', 1995);")
+    tester.test_query("md_7.4_c", "Transaction COMMIT", "COMMIT;")
+    tester.test_query("md_7.4_d", "Verify Commit", f"SELECT * FROM {table_nb} WHERE nconst = '{trans_id}';")
+    
+    # 7.5 Rollback
+    tester.test_query("md_7.5_a", "Rollback START", "START TRANSACTION;")
+    tester.test_query("md_7.5_b", "Rollback DELETE", f"DELETE FROM {table_nb} WHERE nconst = '{trans_id}';")
+    tester.test_query("md_7.5_c", "Rollback EXEC", "ROLLBACK;")
+    tester.test_query("md_7.5_d", "Verify Rollback (Row should exist)", f"SELECT * FROM {table_nb} WHERE nconst = '{trans_id}';")
+    
+    # Cleanup transaction test
+    tester.test_query("md_7_cleanup", "Cleanup Trans", f"DELETE FROM {table_nb} WHERE nconst = '{trans_id}';")
 
-    tester.test_query("cte_simple", "CTE", 
-        "WITH cte AS (SELECT nconst FROM name_basics LIMIT 5) SELECT * FROM cte;")
-    
-    tester.test_query("window_function", "Window Function (ROW_NUMBER)", 
-        "SELECT nconst, primaryName, ROW_NUMBER() OVER (ORDER BY birthYear) AS rn FROM name_basics WHERE birthYear IS NOT NULL LIMIT 10;")
-    
-    tester.test_query("set_union", "Set Operation UNION", 
-        "(SELECT nconst FROM name_basics WHERE birthYear > 1990 LIMIT 5) UNION (SELECT nconst FROM name_basics WHERE birthYear < 1950 LIMIT 5);")
-        
-    # ========================================
-    # 3.7 DDL and Maintenance Operations (Test transactionnel)
-    # ========================================
-    print("\n" + "="*60)
-    print("3.7 DDL and Maintenance Operations (Création/Suppression de table)")
-    print("="*60)
-    
-    ddl_test_table = f"ddl_test_{unique_id}"
-    
-    # Test DDL CREATE TABLE
-    create_ddl_query = f"CREATE TABLE {ddl_test_table} (id INT PRIMARY KEY, description VARCHAR(255));"
-    tester.test_query("ddl_create_table", "DDL CREATE TABLE", create_ddl_query, skip=False)
-    
-    # Test DDL ALTER TABLE (Ajout d'une colonne)
-    alter_ddl_query = f"ALTER TABLE {ddl_test_table} ADD COLUMN test_col INT;"
-    tester.test_query("ddl_alter_table", "DDL ALTER TABLE", alter_ddl_query, skip=False)
+    # --- 8. String Functions ---
+    print("\n--- 8. String Functions ---")
+    tester.test_query("md_8.1", "CONCAT", f"SELECT CONCAT(primaryname, ' (', birthyear, ')') AS full_info FROM {table_nb} WHERE birthyear IS NOT NULL LIMIT 10;")
+    tester.test_query("md_8.2", "SUBSTRING", f"SELECT primaryname, SUBSTRING(primaryname, 1, 10) AS short_name FROM {table_nb} LIMIT 10;")
+    tester.test_query("md_8.3", "UPPER/LOWER", f"SELECT UPPER(primaryname), LOWER(primaryprofession) FROM {table_nb} LIMIT 10;")
+    tester.test_query("md_8.4", "LENGTH", f"SELECT primaryname, LENGTH(primaryname) AS len FROM {table_nb} ORDER BY len DESC LIMIT 10;")
+    tester.test_query("md_8.5", "REPLACE", f"SELECT primaryname, REPLACE(primaryname, ' ', '_') FROM {table_nb} LIMIT 10;")
+    tester.test_query("md_8.6", "TRIM", f"SELECT primaryname, TRIM(primaryname) FROM {table_nb} LIMIT 10;")
 
-    # Test DDL DROP TABLE (Nettoyage)
-    drop_ddl_query = f"DROP TABLE {ddl_test_table};"
-    tester.test_query("ddl_drop_table", "DDL DROP TABLE", drop_ddl_query, skip=False)
+    # --- 9. Advanced SQL ---
+    print("\n--- 9. Advanced SQL ---")
+    tester.test_query("md_9.1", "UNION (Expected Fail on OH)", 
+        f"SELECT primaryname FROM {table_nb} WHERE primaryprofession = 'actor' LIMIT 5 UNION SELECT primaryname FROM {table_nb} WHERE primaryprofession = 'actress' LIMIT 5;")
     
-    # ========================================
-    # 3.4 Error Handling
-    # ========================================
-    print("\n" + "="*60)
-    print("3.4 Error Handling Queries")
-    print("="*60)
-    
-    tester.test_query("error_invalid_table", "Invalid table", 
-        "SELECT * FROM non_existent_table;")
-    
-    tester.test_query("error_constraint", "Constraint violation (NULL)", 
-        f"INSERT INTO {test_table} (nconst) VALUES (NULL);") # Assuming nconst is NOT NULL
+    tester.test_query("md_9.2", "CASE WHEN", 
+        f"""
+        SELECT primaryname, 
+        CASE 
+            WHEN birthyear < 1950 THEN 'Vintage' 
+            WHEN birthyear BETWEEN 1950 AND 1980 THEN 'Classic' 
+            ELSE 'Modern' 
+        END AS era 
+        FROM {table_nb} LIMIT 10;
+        """)
 
-    # ========================================
-    # Generate report and Cleanup
-    # ========================================
+    # --- 10. Database Constraints ---
+    print("\n--- 10. Database Constraints ---")
+    # Note: Using ALTER TABLE requires exclusive locks usually
+    
+    tester.test_query("md_10.1", "Add UNIQUE Constraint", "ALTER TABLE films ADD CONSTRAINT unique_title UNIQUE (title);")
+    # Test violation
+    tester.test_query("md_10.1_fail", "Test UNIQUE Violation", "INSERT INTO films (film_id, title) VALUES ('tt999', 'Example Film 1');")
+    
+    tester.test_query("md_10.2", "Add FK Constraint", 
+        f"ALTER TABLE film_actor ADD CONSTRAINT fk_actor FOREIGN KEY (nconst) REFERENCES {table_nb}(nconst);")
+    
+    tester.test_query("md_10.3", "Add CHECK Constraint", 
+        "ALTER TABLE films ADD CONSTRAINT check_year CHECK (release_year > 1800 AND release_year <= 2100);")
+    
+    # Drop constraints
+    tester.test_query("md_10.4_a", "Drop UNIQUE", "ALTER TABLE films DROP CONSTRAINT unique_title;")
+    tester.test_query("md_10.4_b", "Drop CHECK", "ALTER TABLE films DROP CONSTRAINT check_year;")
+    tester.test_query("md_10.4_c", "Drop FK", "ALTER TABLE film_actor DROP CONSTRAINT fk_actor;")
+
+    # --- 11. Advanced Subqueries ---
+    print("\n--- 11. Advanced Subqueries ---")
+    tester.test_query("md_11.1", "Derived Table", 
+        f"SELECT * FROM (SELECT primaryname, birthyear FROM {table_nb} WHERE birthyear > 1980) AS young_actors LIMIT 10;")
+    
+    tester.test_query("md_11.2", "Correlated Subquery", 
+        f"""
+        SELECT nb1.primaryname, nb1.birthyear 
+        FROM {table_nb} nb1 
+        WHERE nb1.birthyear > (
+            SELECT AVG(birthyear) 
+            FROM {table_nb} nb2 
+            WHERE nb2.primaryprofession = nb1.primaryprofession 
+            AND nb2.birthyear IS NOT NULL
+        ) LIMIT 10;
+        """)
+    
+    tester.test_query("md_11.3", "EXISTS Operator", 
+        f"SELECT primaryname FROM {table_nb} nb WHERE EXISTS (SELECT 1 FROM film_actor fa WHERE fa.nconst = nb.nconst) LIMIT 10;")
+
+    # --- 12. Data Export ---
+    print("\n--- 12. Data Export ---")
+    tester.test_query("md_12.1", "INTO OUTFILE (Expected Fail)", 
+        f"SELECT * FROM {table_nb} LIMIT 10 INTO OUTFILE '/tmp/test_export.csv';")
+
+    # --- 13. Advanced Features ---
+    print("\n--- 13. Advanced Features ---")
+    tester.test_query("md_13.1", "Fuzzy Search LIKE", f"SELECT * FROM {table_nb} WHERE primaryname LIKE '%Leonardo%DiCaprio%';")
+
+    # =========================================================================
+    # PROBLEMATIC QUERIES (From MD Report)
+    # =========================================================================
+    print("\n--- PROBLEMATIC / MISSING FEATURES (From Report) ---")
+
+    # 1. JSON Helpers
+    tester.test_query("prob_1", "JSON_EXTRACT", "SELECT JSON_EXTRACT('{\"a\": 1}', '$.a');")
+    
+    # 2. Multi-table DELETE
+    # Creating a temp table for safety
+    tester.test_query("prob_2_setup", "Setup Temp for Delete", f"CREATE TABLE IF NOT EXISTS nb_test AS SELECT * FROM {table_nb} LIMIT 10;")
+    tester.test_query("prob_2", "Multi-table DELETE JOIN", 
+        "DELETE nb FROM nb_test nb JOIN nb_test nb2 ON nb.nconst = nb2.nconst WHERE nb.birthyear < 1800;")
+    tester.test_query("prob_2_cleanup", "Cleanup Temp", "DROP TABLE IF EXISTS nb_test;")
+
+    # 3. Explicit Index Hints
+    tester.test_query("prob_3", "FORCE INDEX", f"SELECT * FROM {table_nb} FORCE INDEX (PRIMARY) WHERE birthyear < 1900 LIMIT 5;")
+
+    # 4. Partitioning Syntax
+    tester.test_query("prob_4", "CREATE TABLE PARTITION", 
+        """
+        CREATE TABLE part_test (id INT, created_at DATE, PRIMARY KEY (id, created_at)) 
+        PARTITION BY RANGE (YEAR(created_at)) (
+            PARTITION p0 VALUES LESS THAN (2000), 
+            PARTITION p1 VALUES LESS THAN (2010)
+        );
+        """)
+    tester.test_query("prob_4_cleanup", "Drop Partition Table", "DROP TABLE IF EXISTS part_test;")
+
+    # 5. Stored Procedures
+    # Note: Sending CREATE PROCEDURE via Python connector often works without DELIMITER keywords if strictly one statement
+    tester.test_query("prob_5_create", "CREATE PROCEDURE", 
+        f"CREATE PROCEDURE get_actors() BEGIN SELECT * FROM {table_nb} WHERE primaryprofession LIKE '%actor%' LIMIT 5; END")
+    tester.test_query("prob_5_call", "CALL PROCEDURE", "CALL get_actors();")
+    tester.test_query("prob_5_drop", "DROP PROCEDURE", "DROP PROCEDURE IF EXISTS get_actors;")
+
+    # 6. Fulltext Search
+    try:
+        tester.test_query("prob_6_idx", "CREATE FULLTEXT INDEX", f"CREATE FULLTEXT INDEX ft_name ON {table_nb} (primaryname);")
+    except: pass
+    tester.test_query("prob_6_match", "MATCH AGAINST", f"SELECT * FROM {table_nb} WHERE MATCH(primaryname) AGAINST('Fred' IN NATURAL LANGUAGE MODE);")
+
+    # 7. Spatial
+    try:
+        tester.test_query("prob_7_idx", "CREATE SPATIAL INDEX", f"CREATE SPATIAL INDEX idx_spatial ON {table_nb} (primaryname);") # Invalid col but testing syntax
+    except: pass
+    tester.test_query("prob_7_func", "Spatial Function", "SELECT ST_Distance(POINT(0,0), POINT(1,1));")
+
+    # 8. Handler
+    tester.test_query("prob_8", "HANDLER OPEN", f"HANDLER {table_nb} OPEN;")
+
+    # 9. Get Diagnostics
+    tester.test_query("prob_10", "GET DIAGNOSTICS", "GET DIAGNOSTICS @rows = ROW_COUNT;")
+
+    # --- Finalize ---
     tester.generate_report()
+    tester.generate_summary()
     db.close()
-    print("\n✓ Comparison testing complete!")
+    print("\n✓ Full Markdown Compatibility Suite Complete!")
+
 
 if __name__ == "__main__":
     main()
