@@ -1235,23 +1235,21 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
 
 ```
 
-**Status:**  **PARTIAL**  
-**Result:** Empty set (pattern too specific)
-
-**Working Alternative:**
+**Status:**  **Tested**  
+**Result:** 
 ```sql
-
-SELECT * FROM name_basics
-WHERE primaryname LIKE '%Tom%'
-LIMIT 10;
-
++-----------+-------------------+-----------+-----------+-----------------------+-----------------------------------------+
+| nconst    | primaryname       | birthyear | deathyear | primaryprofession     | knownfortitles                          |
++-----------+-------------------+-----------+-----------+-----------------------+-----------------------------------------+
+| nm0000138 | Leonardo DiCaprio |      1974 |      NULL | producer,actor,writer | tt1375666,tt0120338,tt0407887,tt0993846 |
++-----------+-------------------+-----------+-----------+-----------------------+-----------------------------------------+
 ```
+
 **Status:**  **PASSED**
 
 **Notes:**
 - LIKE operator works correctly
-- Pattern matching requires data to exist
-- No dedicated fuzzy matching function found
+- Pattern matching works
 
 ---
 
