@@ -1253,31 +1253,6 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
 
 ---
 
-### Test 13.2: Clustering Operations
-**Query:**
-```sql
-
-CLUSTER films BY genre;
-
-```
-
-**Status:**  **NOT TESTED**  
-**Reason:** Feature availability unknown; requires documentation review
-
----
-
-### Test 13.3: Recommendation Systems
-**Query:**
-```sql
-
-RECOMMEND films SIMILAR TO 'Inception';
-
-```
-
-**Status:**  **NOT TESTED**  
-**Reason:** Custom syntax; not part of standard MySQL/PostgreSQL
-
----
 
 ## Test Summary
 
