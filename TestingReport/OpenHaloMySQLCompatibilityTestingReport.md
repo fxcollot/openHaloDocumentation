@@ -385,6 +385,7 @@ LIMIT 10;
 
 **Sample Output:**
 
+```sql
 +---------------------+----------------+--------------+
 | primaryname         | title          | release_year |
 +---------------------+----------------+--------------+
@@ -394,6 +395,7 @@ LIMIT 10;
 | Curtis Tyler Haynes | Example Film 4 |         1996 |
 +---------------------+----------------+--------------+
 
+```
 **Notes:**
 - Multi-table INNER JOIN works correctly
 - JOIN conditions properly evaluated
