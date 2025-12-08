@@ -13,6 +13,7 @@ from statistics import mean, median
 import sys
 import uuid
 from copy import deepcopy
+import random
 
 @dataclass
 class QueryResult:
@@ -66,25 +67,211 @@ class DualDatabaseConnector:
 
 # --- Schema Inspector ---
 
-class SchemaInspector:
-    """Simule l'inspection du schéma pour générer des requêtes dynamiques."""
+import random
+
+class DynamicQueryBuilder:
+    """
+    Génère des requêtes SQL aléatoires mais valides basées sur la structure de la table.
+    """
+    
+    # Définition du schéma pour savoir quoi générer
     SCHEMA = {
         'name_basics': {
-            'numeric_columns': ['birthYear', 'deathYear'],
-            'string_columns': ['nconst', 'primaryName', 'primaryProfession'],
-            'all_columns': ['nconst', 'primaryName', 'birthYear', 'deathYear', 'primaryProfession']
+            'columns': ['nconst', 'primaryname', 'birthyear', 'deathyear', 'primaryprofession', 'knownfortitles'],
+            'numeric': ['birthyear', 'deathyear'],
+            'string': ['nconst', 'primaryname', 'primaryprofession', 'knownfortitles']
+        },
+        'films': {
+            'columns': ['film_id', 'title', 'release_year', 'rating', 'genre'],
+            'numeric': ['release_year', 'rating'],
+            'string': ['film_id', 'title', 'genre']
         }
+        # Ajoute d'autres tables si nécessaire
     }
-    
-    @staticmethod
-    def get_columns(table: str, type_filter: str) -> List[str]:
-        if type_filter == 'numeric':
-            return SchemaInspector.SCHEMA.get(table, {}).get('numeric_columns', [])
-        elif type_filter == 'string':
-            return SchemaInspector.SCHEMA.get(table, {}).get('string_columns', [])
-        elif type_filter == 'all':
-            return SchemaInspector.SCHEMA.get(table, {}).get('all_columns', [])
-        return []
+
+    def __init__(self, table_name):
+        self.table = table_name
+        self.meta = self.SCHEMA.get(table_name)
+        if not self.meta:
+            raise ValueError(f"Table {table_name} non définie dans le SCHEMA")
+
+    def _get_random_value(self, column):
+        """Génère une valeur fictive pour les clauses WHERE (très basique)"""
+        if column in self.meta['numeric']:
+            return str(random.randint(1950, 2020))
+        else:
+            # Pour les strings, on renvoie une valeur générique ou un pattern
+            return "'%actor%'" if 'profession' in column else "'TestValue'"
+
+    def build_select(self, mode='random', limit=10):
+        """
+        Génère un SELECT dynamique.
+        modes: 'star', 'single', 'multi', 'random'
+        """
+        cols = self.meta['columns']
+        
+        # Choix des colonnes
+        if mode == 'random':
+            mode = random.choice(['star', 'single', 'multi'])
+
+        if mode == 'star':
+            selected_cols = "*"
+        elif mode == 'single':
+            selected_cols = random.choice(cols)
+        elif mode == 'multi':
+            # Prend entre 2 et le max de colonnes
+            nb_cols = random.randint(2, len(cols))
+            selected_cols = ", ".join(random.sample(cols, nb_cols))
+        
+        query = f"SELECT {selected_cols} FROM {self.table}"
+        
+        # Ajout optionnel d'un WHERE (1 fois sur 3)
+        if random.random() > 0.7:
+            query += self._build_random_where_clause()
+            
+        # Ajout optionnel d'un ORDER BY (1 fois sur 3)
+        if random.random() > 0.7:
+             col_sort = random.choice(cols)
+             direction = random.choice(['ASC', 'DESC'])
+             query += f" ORDER BY {col_sort} {direction}"
+
+        query += f" LIMIT {limit};"
+        return f"Dynamic SELECT ({mode})", query
+
+    def _build_random_where_clause(self):
+        """Construit une clause WHERE simple"""
+        col = random.choice(self.meta['columns'])
+        
+        if col in self.meta['numeric']:
+            operator = random.choice(['>', '<', '=', '>=', '<=', '!='])
+            val = self._get_random_value(col)
+            return f" WHERE {col} {operator} {val}"
+        else:
+            operator = random.choice(['=', '!=', 'LIKE'])
+            val = self._get_random_value(col)
+            return f" WHERE {col} {operator} {val}"
+
+    def build_aggregation(self):
+        """Génère une agrégation (COUNT, MAX, AVG)"""
+        agg_func = random.choice(['COUNT', 'MIN', 'MAX'])
+        
+        # On préfère faire des AVG/SUM sur des nombres
+        if agg_func in ['AVG', 'SUM']:
+            col = random.choice(self.meta['numeric'])
+        else:
+            col = random.choice(self.meta['columns']) # COUNT/MIN/MAX marchent sur tout
+            
+        # Parfois on groupe, parfois non
+        group_by = ""
+        group_col = random.choice(self.meta['string']) # On groupe souvent par string (ex: profession)
+        
+        if random.choice([True, False]):
+            base = f"SELECT {group_col}, {agg_func}({col}) FROM {self.table} GROUP BY {group_col}"
+            # Souvent besoin d'un order by avec group by pour la cohérence
+            base += f" ORDER BY {agg_func}({col}) DESC LIMIT 10;"
+            return f"Dynamic AGG ({agg_func} by {group_col})", base
+        else:
+            return f"Dynamic AGG Simple ({agg_func})", f"SELECT {agg_func}({col}) FROM {self.table};"
+        
+        # --- AJOUTS V2 : NOUVELLES MÉTHODES DYNAMIQUES ---
+
+    def build_complex_where(self, limit=10):
+        """Génère des WHERE avec IN, BETWEEN et OR"""
+        cols = self.meta['columns']
+        # On choisit 2 colonnes au hasard pour faire un condition complexe
+        col1 = random.choice(cols)
+        
+        mode = random.choice(['IN', 'BETWEEN', 'OR_MIX'])
+        query = f"SELECT * FROM {self.table} WHERE "
+        
+        if mode == 'IN':
+            # Génère (val1, val2, val3)
+            vals = [self._get_random_value(col1) for _ in range(3)]
+            query += f"{col1} IN ({', '.join(vals)})"
+            
+        elif mode == 'BETWEEN' and col1 in self.meta['numeric']:
+            val_start = random.randint(1900, 1980)
+            val_end = val_start + random.randint(5, 20)
+            query += f"{col1} BETWEEN {val_start} AND {val_end}"
+        
+        else: # OR MIX
+            col2 = random.choice(cols)
+            val1 = self._get_random_value(col1)
+            val2 = self._get_random_value(col2)
+            query += f"({col1} = {val1} OR {col2} = {val2})"
+
+        query += f" LIMIT {limit};"
+        return f"Dyn Complex Filter ({mode})", query
+
+    def build_scalar_function(self, limit=10):
+        """Teste les fonctions de manipulation de chaînes/maths"""
+        str_col = random.choice(self.meta['string'])
+        num_col = random.choice(self.meta['numeric'])
+        
+        func_type = random.choice(['STRING', 'MATH'])
+        
+        if func_type == 'STRING':
+            # Test LENGTH, LOWER, CONCAT, LEFT
+            func = random.choice([
+                f"LENGTH({str_col})", 
+                f"LOWER({str_col})", 
+                f"CONCAT({str_col}, '_test')", 
+                f"LEFT({str_col}, 3)"
+            ])
+            query = f"SELECT {str_col}, {func} as res FROM {self.table} WHERE {str_col} IS NOT NULL"
+            
+        else: # MATH
+            # Test des opérations arithmétiques
+            calc = random.choice([
+                f"({num_col} * 2)", 
+                f"({num_col} % 10)", # Modulo
+                f"ABS({num_col} - 2000)"
+            ])
+            query = f"SELECT {num_col}, {calc} as math_res FROM {self.table} WHERE {num_col} IS NOT NULL"
+
+        query += f" LIMIT {limit};"
+        return f"Dyn Scalar Func ({func_type})", query
+
+    def build_subquery(self, limit=10):
+        """Génère une sous-requête (WHERE col > (SELECT AVG...))"""
+        # On utilise une colonne numérique pour comparer
+        num_col = random.choice(self.meta['numeric'])
+        
+        # Sous-requête qui calcule une moyenne ou un min
+        sub = f"(SELECT AVG({num_col}) FROM {self.table} WHERE {num_col} IS NOT NULL)"
+        
+        # Requête principale
+        query = f"SELECT * FROM {self.table} WHERE {num_col} > {sub} LIMIT {limit};"
+        return f"Dyn Subquery (Compare to AVG)", query
+
+    def build_dml_lifecycle(self):
+        """
+        Génère une suite INSERT -> UPDATE -> SELECT -> DELETE.
+        Retourne une liste de tuples (desc, sql).
+        """
+        # ID unique pour ne pas casser la prod
+        unique_id = f"nm99{random.randint(10000, 99999)}"
+        name = f"AutoTest_{random.randint(1,999)}"
+        
+        steps = []
+        
+        # 1. INSERT
+        sql_ins = f"INSERT INTO {self.table} (nconst, primaryname, birthyear, primaryprofession) VALUES ('{unique_id}', '{name}', 2025, 'tester');"
+        steps.append((f"Dyn DML 1: INSERT {unique_id}", sql_ins))
+        
+        # 2. UPDATE
+        sql_upd = f"UPDATE {self.table} SET birthyear = 2026 WHERE nconst = '{unique_id}';"
+        steps.append((f"Dyn DML 2: UPDATE {unique_id}", sql_upd))
+        
+        # 3. VERIFY
+        sql_sel = f"SELECT * FROM {self.table} WHERE nconst = '{unique_id}';"
+        steps.append((f"Dyn DML 3: SELECT {unique_id}", sql_sel))
+        
+        # 4. DELETE
+        sql_del = f"DELETE FROM {self.table} WHERE nconst = '{unique_id}';"
+        steps.append((f"Dyn DML 4: DELETE {unique_id}", sql_del))
+        
+        return steps
 
 # --- Dual Query Tester ---
 
@@ -282,6 +469,8 @@ def main():
 
     # Reduced iterations for compatibility check
     tester = DualQueryTester(db, iterations=3, warmup=1)
+
+    builder = DynamicQueryBuilder('name_basics')
     
     table_nb = "name_basics"
     
@@ -315,6 +504,55 @@ def main():
 
     tester.test_query("md_3.4", "Advanced Grouping (FLOOR)", 
         f"SELECT FLOOR(birthyear/10)*10 AS decade, COUNT(*) AS total FROM {table_nb} WHERE birthyear IS NOT NULL GROUP BY decade ORDER BY decade DESC;")
+
+    # --- 1. Génération de SELECT dynamiques ---
+    # On va générer 10 requêtes de sélection totalement différentes
+    print("\n--- Generating 10 Random SELECT/WHERE/ORDER scenarios ---")
+    for i in range(1, 11):
+        # Le builder renvoie une description et la requête SQL
+        desc, sql = builder.build_select(mode='random', limit=random.randint(5, 50))
+        
+        query_id = f"dyn_sel_{i}"
+        tester.test_query(query_id, desc, sql)
+
+    # --- 2. Génération d'Agrégations dynamiques ---
+    print("\n--- Generating 5 Random Aggregation scenarios ---")
+    for i in range(1, 6):
+        desc, sql = builder.build_aggregation()
+        
+        query_id = f"dyn_agg_{i}"
+        tester.test_query(query_id, desc, sql)
+
+    # ... (Suite de la section Dynamic Random Testing) ...
+
+    # Phase 3: Filtres Complexes (IN, BETWEEN)
+    print("\n--- 3. Génération de Filtres Complexes ---")
+    for i in range(1, 6):
+        desc, sql = builder.build_complex_where()
+        tester.test_query(f"dyn_cplx_{i:02d}", desc, sql)
+
+    # Phase 4: Fonctions Scalaires (String/Math)
+    print("\n--- 4. Fonctions Scalaires ---")
+    for i in range(1, 6):
+        desc, sql = builder.build_scalar_function()
+        tester.test_query(f"dyn_func_{i:02d}", desc, sql)
+
+    # Phase 5: Sous-requêtes
+    print("\n--- 5. Sous-requêtes ---")
+    for i in range(1, 4):
+        desc, sql = builder.build_subquery()
+        tester.test_query(f"dyn_sub_{i:02d}", desc, sql)
+
+    # Phase 6: Cycle de vie DML (Insert/Update/Delete)
+    print("\n--- 6. DML Lifecycle (Safe) ---")
+    # On génère une séquence complète
+    dml_steps = builder.build_dml_lifecycle()
+    for desc, sql in dml_steps:
+        # Pour le DML, on ne veut pas l'exécuter 3 fois (sinon erreur duplicate key), donc on force iterations=1 temporairement
+        old_iter = tester.iterations
+        tester.iterations = 1 
+        tester.test_query("dyn_dml", "DML Lifecycle", sql)
+        tester.iterations = old_iter
 
     # --- 4. Data Manipulation (CRUD) ---
     print("\n--- 4. Data Manipulation (CRUD) ---")
@@ -468,6 +706,15 @@ def main():
         FROM {table_nb} LIMIT 10;
         """)
 
+    # 9. Show Table Status (Manquant dans le script original)
+    try:
+        # On tente de changer de DB (ce qui échoue souvent sur OH selon le rapport) 
+        # puis d'afficher le status
+        tester.test_query("prob_9_use", "USE DB", f"USE {openhalo_config['database']};")
+        tester.test_query("prob_9_status", "SHOW TABLE STATUS", "SHOW TABLE STATUS;")
+    except:
+        pass
+
     # --- 10. Database Constraints ---
     print("\n--- 10. Database Constraints ---")
     # Note: Using ALTER TABLE requires exclusive locks usually
@@ -511,6 +758,17 @@ def main():
     print("\n--- 12. Data Export ---")
     tester.test_query("md_12.1", "INTO OUTFILE (Expected Fail)", 
         f"SELECT * FROM {table_nb} LIMIT 10 INTO OUTFILE '/tmp/test_export.csv';")
+
+    import subprocess
+
+    # ... dans la section 12 ...
+    print("\n--- 12.2 Shell Export (System Command) ---")
+    try:
+        cmd = f"mysql -P {mysql_config['port']} -h {mysql_config['host']} -u {mysql_config['user']} -p{mysql_config['password']} -e 'USE {mysql_config['database']}; SELECT * FROM {table_nb} LIMIT 5;' | sed 's/\\t/,/g'"
+        # On ne l'exécute pas vraiment pour ne pas spammer la console, mais on loggue que c'est un test manuel/système
+        print("  [System] Shell export command defined but skipped in Python connector test.")
+    except Exception as e:
+        print(f"  [System] Error defining shell command: {e}")
 
     # --- 13. Advanced Features ---
     print("\n--- 13. Advanced Features ---")
@@ -567,7 +825,11 @@ def main():
     # 8. Handler
     tester.test_query("prob_8", "HANDLER OPEN", f"HANDLER {table_nb} OPEN;")
 
-    # 9. Get Diagnostics
+    # --- AJOUT: 9. Show Table Status ---
+    # Le rapport indique que cela échoue souvent à cause du contexte de la DB
+    tester.test_query("prob_9", "SHOW TABLE STATUS", "SHOW TABLE STATUS;")
+
+    # 10. Get Diagnostics
     tester.test_query("prob_10", "GET DIAGNOSTICS", "GET DIAGNOSTICS @rows = ROW_COUNT;")
 
     # --- Finalize ---
