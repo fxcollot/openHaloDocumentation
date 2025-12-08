@@ -1290,7 +1290,7 @@ WHERE primaryname LIKE '%Leonardo%DiCaprio%';
 | Database Constraints | 4 | 4 | 0 | 0 | 100% |
 | Advanced Subqueries | 3 | 3 | 0 | 0 | 100% |
 | Advanced Features | 1 | 1 | 0 | 0 | 100% |
-| **TOTAL** | **43** | **42** | **1** | **2** | **97.7%** |
+| **TOTAL** | **43** | **42** | **1** | **0** | **97.7%** |
 
 ## Observations
 
