@@ -1872,55 +1872,6 @@ All of the features above are documented in the official MySQL 5.7 Reference Man
 
 
 
-
-
-
-
-### 3) MySQL explicit index hints
-
-**Query:**
-
-
-
-## Recommendations
-
-### Short-Term
-1. **Expand Test Dataset**
-   - Import `title_basics` table (films/TV shows)
-   - Import `title_ratings` table
-   - Import `title_principals` table (actors/directors relationships)
-   - Test JOIN operations across multiple tables
-
-2. **Test Additional Features**
-   - Stored procedures creation and execution
-   - Trigger functionality
-   - View creation and querying
-   - Transaction management (BEGIN, COMMIT, ROLLBACK)
-
-3. **Performance Testing**
-   - Benchmark query performance with larger datasets (1M+ rows)
-   - Compare performance: MySQL protocol vs PostgreSQL protocol
-   - Test concurrent connections
-   - Measure index impact on query speed
-
-### Long-Term
-1. **Create Comprehensive Migration Guide**
-   - Document known incompatibilities
-   - Provide workarounds for unsupported features
-   - Create migration checklist for MySQL users
-
-2. **Develop Testing Framework**
-   - Automated test suite for regression testing
-   - Performance benchmarking tools
-   - Compatibility validation scripts
-
-3. **Community Contribution**
-   - Share test results with OpenHalo community
-   - Report bugs and limitations
-   - Contribute to documentation
-
-
-
 ## Appendix: Quick Reference
 
 ### Connection Commands
