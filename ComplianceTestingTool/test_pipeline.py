@@ -14,6 +14,7 @@ import sys
 import uuid
 from copy import deepcopy
 import random
+import concurrent.futures
 
 @dataclass
 class QueryResult:
@@ -23,6 +24,7 @@ class QueryResult:
     times: List[float]
     mean_time: float
     median_time: float
+    p95_time : float
     status: str
     rows: int
     error: str = None
@@ -325,7 +327,18 @@ class DualQueryTester:
         rows_count = 0
 
         if skip:
-            return QueryResult(target, query_id, query_type, [], 0, 0, "Skipped", 0, "Query type not tested")
+            return QueryResult(
+                target=target,
+                query_id=query_id,
+                query_type=query_type,
+                times=[],
+                mean_time=0,
+                median_time=0,
+                p95_time=0,
+                status="Skipped",
+                rows=0,
+                error="Query type not tested"
+            )
 
         try:
             # Warmup (only for SELECTs to avoid side effects on INSERTs)
@@ -348,10 +361,26 @@ class DualQueryTester:
             
             mean_time = mean(times)
             median_time = median(times)
+
+            times.sort()
+            idx_p95 = int(len(times) * 0.95)
+            p95_val = times[idx_p95] if times else 0
+
             status = self.classify_performance(mean_time)
             
-            print(f"  [{target}] Mean: {mean_time:.2f}ms, Rows: {rows_count}, Status: {status}")
-            return QueryResult(target, query_id, query_type, times, mean_time, median_time, status, rows_count)
+            print(f"  [{target}] Mean: {mean_time:.2f}ms, P95: {p95_val:.2f}ms, Rows: {rows_count}, Status: {status}")
+            return QueryResult(
+                target=target,
+                query_id=query_id,
+                query_type=query_type,
+                times=times,
+                mean_time=mean_time,
+                median_time=median_time,
+                p95_time=p95_val,
+                status=status,
+                rows=rows_count,
+                error=None
+            )
             
         except Exception as e:
             error_msg = str(e)
@@ -364,7 +393,18 @@ class DualQueryTester:
                 status = "MissingFeature"
             
             print(f"  [{target}] ✗ {status}: {error_msg.splitlines()[0][:100]}...")
-            return QueryResult(target, query_id, query_type, [], 0, 0, status, 0, error_msg)
+            return QueryResult(
+                target=target,
+                query_id=query_id,
+                query_type=query_type,
+                times=[],
+                mean_time=0,
+                median_time=0,
+                p95_time=0,
+                status=status,
+                rows=0,
+                error=error_msg
+            )
 
     def test_query(self, query_id: str, query_type: str, query: str, skip: bool = False):
         print(f"\nTesting: {query_id} ({query_type})")
@@ -453,6 +493,83 @@ class DualQueryTester:
 
         print("\n✅ End of synthesis report")
 
+
+class StressTester:
+    def __init__(self, db_config, num_threads=10, duration_seconds=5):
+        self.db_config = db_config
+        self.num_threads = num_threads
+        self.duration = duration_seconds
+
+    def _worker_task(self):
+        """Simule un utilisateur actif"""
+        try:
+            conn = mysql.connector.connect(**self.db_config)
+            cursor = conn.cursor()
+        except:
+            return 0, 1 # 0 queries, 1 connection error
+
+        queries_run = 0
+        errors = 0
+        start_time = time.time()
+        
+        while time.time() - start_time < self.duration:
+            try:
+                # Requête mixte simple (Lecture)
+                cursor.execute("SELECT * FROM name_basics WHERE primaryprofession = 'actor' LIMIT 1")
+                cursor.fetchall()
+                queries_run += 1
+            except Exception:
+                errors += 1
+        
+        conn.close()
+        return queries_run, errors
+
+    def run_benchmark(self, target_name):
+        print(f"\n🔥 STRESS TEST: {target_name} ({self.num_threads} threads, {self.duration}s)")
+        total_queries = 0
+        total_errors = 0
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_threads) as executor:
+            futures = [executor.submit(self._worker_task) for _ in range(self.num_threads)]
+            for future in concurrent.futures.as_completed(futures):
+                q, e = future.result()
+                total_queries += q
+                total_errors += e
+
+        if self.duration > 0:
+            tps = total_queries / self.duration
+        else:
+            tps = 0
+            
+        print(f"  ➜ Total Queries: {total_queries}")
+        print(f"  ➜ Errors: {total_errors}")
+        print(f"  ➜ TPS (Transac/Sec): {tps:.2f}")
+        return tps
+
+def test_bulk_insert(target_name, config, batch_size=5000):
+    print(f"\n📦 BULK INSERT TEST: {target_name} ({batch_size} rows)")
+    try:
+        conn = mysql.connector.connect(**config)
+        cursor = conn.cursor()
+        cursor.execute("DROP TABLE IF EXISTS bulk_test")
+        cursor.execute("CREATE TABLE bulk_test (id INT, val VARCHAR(50))")
+        
+        data = [(i, f"val_{i}") for i in range(batch_size)]
+        
+        start = time.perf_counter()
+        # executemany est optimisé pour le bulk
+        cursor.executemany("INSERT INTO bulk_test (id, val) VALUES (%s, %s)", data)
+        conn.commit()
+        end = time.perf_counter()
+        
+        duration_ms = (end - start) * 1000
+        print(f"  ➜ Time: {duration_ms:.2f} ms")
+        print(f"  ➜ Rate: {batch_size / (end - start):.0f} rows/sec")
+        
+        cursor.execute("DROP TABLE bulk_test")
+        conn.close()
+    except Exception as e:
+        print(f"  ➜ Failed: {e}")
 
 def main():
     # --- Configuration ---
@@ -832,6 +949,23 @@ def main():
     # 10. Get Diagnostics
     tester.test_query("prob_10", "GET DIAGNOSTICS", "GET DIAGNOSTICS @rows = ROW_COUNT;")
 
+    # --- 14. PERFORMANCE BENCHMARKS (NOUVEAU) ---
+    print("\n" + "="*60)
+    print("PERFORMANCE BENCHMARKS (Stress & Bulk)")
+    print("="*60)
+
+    # 1. Bulk Insert
+    test_bulk_insert("OpenHalo", openhalo_config)
+    test_bulk_insert("MySQL", mysql_config)
+
+    # 2. Stress Test (Concurrency)
+    # On simule 10 utilisateurs pendant 5 secondes
+    stress = StressTester(openhalo_config, num_threads=10, duration_seconds=5)
+    stress.run_benchmark("OpenHalo")
+
+    stress_mysql = StressTester(mysql_config, num_threads=10, duration_seconds=5)
+    stress_mysql.run_benchmark("MySQL")
+    
     # --- Finalize ---
     tester.generate_report()
     tester.generate_summary()
