@@ -1,36 +1,60 @@
-# OpenHalo : Créer une base MySQL et la vérifier dans PostgreSQL
+# OpenHalo: Create a MySQL Database and Validate It in PostgreSQL
 
-OpenHalo permet de **connecter un client MySQL à un serveur PostgreSQL**.  
-Toutes les requêtes MySQL sont **traduites automatiquement** et les données sont stockées dans PostgreSQL.  
+OpenHalo makes it possible to **connect a MySQL client to a PostgreSQL server**.  
+All MySQL queries are **automatically translated**, and data is stored in PostgreSQL.
 
-Voici le workflow complet.
+The full workflow is described below.
 
 ---
 
-## Créer une base MySQL via OpenHalo
+## Creating a MySQL Database Through OpenHalo
 
-Se connecter au client MySQL (port 3306) :
+Connect using a MySQL root : 
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u halo -p
+mysql -u root -p
 ```
+Enter the password predetermined, here : mysecret
 
-Créer la base :
+
+## Create a database:
+
 ```sql
 CREATE DATABASE testdb;
+```
+Grant all access to client 'halo':
+
+```sql
+GRANT ALL PRIVILEGES ON testdb.* TO 'halo'@'%';
+FLUSH PRIVILEGES;
+```
+Exit the root to connect to 'halo':
+
+```sql
+exit;
+```
+
+Connect using a MySQL client (port 3306):
+
+```bash
+mysql -h mysqldb -u halo -p openhalo
+```
+
+## Use the database:
+```sql
 USE testdb;
 ```
 
-Vérifier les bases et tables :
+## Verify databases and tables:
 ```sql
 SHOW DATABASES;
-SHOW TABLES;  -- devrait être vide
+SHOW TABLES;  -- should be empty
 ```
 
 ---
-## Créer une table et insérer des données via MySQL
+## Creating a Table and Inserting Data via MySQL
 
-Créer une table users :
+Create a users table:
 ```sql
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -39,12 +63,12 @@ CREATE TABLE users (
 );
 ```
 
-Vérifier la table :
+Check the table:
 ```sql
 SHOW TABLES;
 ```
 
-Insérer quelques lignes :
+Insert sample rows:
 ```sql
 INSERT INTO users (name, email) VALUES
 ('Alice', 'alice@example.com'),
@@ -52,46 +76,46 @@ INSERT INTO users (name, email) VALUES
 ('Charlie', 'charlie@example.com');
 ```
 
-Sélectionner les données pour vérifier :
+Query the data:
 ```sql
 SELECT * FROM users;
 ```
 --- 
-## Comprendre le mapping OpenHalo → PostgreSQL
+## Understanding the OpenHalo → PostgreSQL Mapping
 
-La base MySQL testdb est automatiquement mappée à un schéma PostgreSQL appelé testdb.
+The MySQL database `testdb` is automatically mapped to a PostgreSQL schema named `testdb`.
 
-La table users que tu viens de créer existe maintenant dans ce schéma PostgreSQL.
+The `users` table created in MySQL now exists within that PostgreSQL schema.
 
-Même si tu es connecté via MySQL, les données sont réellement stockées dans PostgreSQL.
+Although operations are performed using a MySQL client, the underlying data is stored entirely in PostgreSQL.
 
 ---
 
-## Vérifier les données dans PostgreSQL
+## Validating Data in PostgreSQL
 
-Se connecter à PostgreSQL (port 5432) :
+Connect to PostgreSQL (port 5432):
 ```bash
 psql -h 127.0.0.1 -p 5432 -U halo -d halo0root
 ```
 
-Lister les schémas pour voir le mapping :
+List schemas to confirm the mapping:
 ```sql
 \dn
 ```
 
-Tu devrais voir le schéma testdb.
+The schema `testdb` should be visible.
 
-Lister les tables dans ce schéma :
+List the tables in the schema:
 ```sql
 \dt testdb.*
 ```
 
-Sélectionner les données :
+Query the data:
 ```sql
 SELECT * FROM testdb.users;
 ```
 
-Résultat attendu :
+Expected output:
 
 
 ```sql
@@ -104,24 +128,60 @@ Résultat attendu :
 
 ---
 
-## Astuce : éviter de préfixer le schéma
+## Optional: Avoid Prefixing the Schema
 
-Pour travailler directement sur le schéma sans le préfixer à chaque requête :
+To work directly within the schema without specifying it explicitly:
 
 ```sql
 SET search_path TO testdb;
 SELECT * FROM users;
 ```
 
-users sera trouvé directement comme si tu étais dans MySQL.
+The table `users` will be resolved as if working directly on a MySQL database.
 
 ---
-## Résumé du fonctionnement
 
-Tu écris du SQL MySQL côté client MySQL (port 3306).
+## Loading a MySQL Database From a `.sql` File
 
-OpenHalo traduit automatiquement la requête en PostgreSQL.
+If a database needs to be imported from a MySQL dump file, the process can be performed directly through the MySQL client connected to OpenHalo.
 
-Les tables MySQL sont stockées dans un schéma PostgreSQL correspondant à la base MySQL.
+### Importing the SQL File
 
-Tu peux vérifier et interagir avec ces tables dans PostgreSQL via le schéma.
+Ensure that the target database exists:
+
+```sql
+CREATE DATABASE mydb;
+```
+
+Exit the MySQL prompt if needed, then run:
+```bash
+mysql -h 127.0.0.1 -P 3306 -u halo -p mydb < /path/to/file.sql
+```
+
+OpenHalo will process the SQL file exactly as a MySQL server would, translating supported MySQL constructs into PostgreSQL.
+
+---
+## Validating the Imported Structure in PostgreSQL
+
+Once the import is complete, the new schema will be available in PostgreSQL under the same database name:
+
+```sql
+\dn
+\dt mydb.*
+SELECT * FROM mydb.<table_name>;
+```
+
+This ensures that the full database structure and its data have been successfully translated and stored.
+
+---
+## Summary
+
+- SQL statements are issued through a MySQL client (port 3306).
+
+- OpenHalo automatically translates MySQL queries into PostgreSQL operations.
+
+- Each MySQL database corresponds to a PostgreSQL schema.
+
+- Data can be validated directly from PostgreSQL.
+
+- Databases can also be loaded through a MySQL .sql dump file.
