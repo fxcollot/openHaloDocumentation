@@ -6,7 +6,7 @@ echo "=== Start of Openhalo (PostgreSQL + compat MySQL) ==="
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
     echo "Initializing PostgreSQL..."
     # Initialize the database cluster
-    initdb -D "$PGDATA"
+    initdb -D "$PGDATA" --encoding=UTF8 --lc-collate='C' --lc-ctype='C'
 
     echo "Configuring MySQL compatibility..."
     # Configuration added to postgresql.conf
