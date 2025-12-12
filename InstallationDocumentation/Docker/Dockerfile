@@ -1,10 +1,10 @@
 FROM quay.io/centos/centos:stream9 AS builder
 
-#ENV DEBIAN_FRONTEND=noninteractive
+# Environment variables
 ENV TZ=Europe/Paris
 ENV HALO_HOME=/opt/openhalo/1.0
 
-# Installer les outils de build
+# Install build dependencies
 RUN dnf install -y \
     git gcc gcc-c++ make cmake autoconf bison flex pkg-config \
     postgresql postgresql-devel \
@@ -29,8 +29,7 @@ RUN ./configure --prefix=$HALO_HOME --enable-debug --with-icu CFLAGS=-O2 && \
 # ====== STAGE 2 : Runtime ======
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
-# Variables d'environnement
-#ENV DEBIAN_FRONTEND=noninteractive
+# Environment variables
 ENV TZ=Europe/Paris
 ENV HALO_HOME=/opt/openhalo/1.0
 ENV PGDATA=/home/halo/ohdata
@@ -39,7 +38,7 @@ ENV LD_LIBRARY_PATH=
 ENV LD_LIBRARY_PATH=$HALO_HOME/lib:${LD_LIBRARY_PATH}
 ENV PGHOST=/var/run/openhalo
 
-# Installer les dépendances runtime seulement
+# Install runtime dependencies only
 RUN microdnf install -y \
     postgresql \
     mariadb-connector-c \
@@ -53,25 +52,35 @@ RUN microdnf install -y \
     echo $TZ > /etc/timezone && \
     microdnf clean all
 
+# Create the destination directory before copying (Security)
+RUN mkdir -p $HALO_HOME/share
 
-# Copier OpenHalo compilé depuis le stage builder
+# Copy compiled OpenHalo from the builder stage
 COPY --from=builder $HALO_HOME $HALO_HOME
+COPY --from=builder /tmp/openHalo/src/backend/utils/misc/postgresql.conf.sample $HALO_HOME/share/postgresql.conf.sample
 
-# Créer utilisateur et permissions
+# Install sed (needed for modification), modify the file, then clean up.
+RUN microdnf install -y sed && \
+    sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" $HALO_HOME/share/postgresql.conf.sample && \
+    microdnf clean all
+
+# Create user and permissions
 RUN groupadd -g 1500 halo && \
     useradd -u 1500 -g 1500 -m halo && \
     mkdir -p /home/halo/ohdata /var/run/openhalo && \
     chown -R halo:halo /home/halo /var/run/openhalo $HALO_HOME && \
     chmod 700 /home/halo/ohdata
 
-# Copier le script d’entrée
+# Copy the entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+
 
 USER halo
 WORKDIR /home/halo
 
-# Exposer les ports PostgreSQL (5432) et MySQL-compat (3306)
-#EXPOSE 5432 3306
+# Expose PostgreSQL (5434) and MySQL-compat (3308) ports
+EXPOSE 5434 3308
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
