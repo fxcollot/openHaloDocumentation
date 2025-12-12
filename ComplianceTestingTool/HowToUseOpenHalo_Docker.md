@@ -17,11 +17,15 @@ CREATE SCHEMA mysql AUTHORIZATION halo;
 CREATE DATABASE openhalo;
 \q
 ```
+
+## Check if the openhalo database is really created
+
 ```bash
 psql -h 127.0.0.1 -p 5434 -U halo -d openhalo
 ```
-
-
+```bash
+\q
+```
 
 ## Creating a MySQL Database Through OpenHalo
 
