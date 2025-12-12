@@ -207,6 +207,12 @@ CREATE DATABASE mydb;
 ```
 
 Add a volume in the 'compose.yaml' in the part 'volumes' of openhalo:
+```yaml
+  openhalo:
+    ...
+    volumes:
+      - openhalo_data:/home/halo/ohdata
+```
 ```
 - /pathtofile on pc/name_basics_mysql.sql:/home/halo/name_basics_mysql.sql:ro
 ````
