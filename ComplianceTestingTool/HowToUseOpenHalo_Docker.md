@@ -11,6 +11,14 @@ The full workflow is described below.
   psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
 ```
 
+```
+sh-5.1$   psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
+psql (1.0.14.18 (251212))
+Type "help" for help.
+
+halo0root=#
+```
+
 ```sql
 CREATE EXTENSION aux_mysql;
 CREATE SCHEMA mysql AUTHORIZATION halo;
