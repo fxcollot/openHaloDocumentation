@@ -11,6 +11,7 @@ The full workflow is described below.
   psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
 ```
 
+If it's working, it should open psql like this:
 ```
 sh-5.1$   psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
 psql (1.0.14.18 (251212))
@@ -24,6 +25,13 @@ CREATE EXTENSION aux_mysql;
 CREATE SCHEMA mysql AUTHORIZATION halo;
 CREATE DATABASE openhalo;
 \q
+```
+
+You should see this : 
+```sql
+CREATE EXTENSION
+ERROR:  schema "mysql" already exists
+CREATE DATABASE
 ```
 
 ## Check if the openhalo database is really created
@@ -40,7 +48,7 @@ psql -h 127.0.0.1 -p 5434 -U halo -d openhalo
 Connect to MySQL client halo (port 3308) : 
 
 ```bash
-  mysql -h openhalo -P 3308 -u root -p
+  mysql -h openhalo -P 3308 -u halo -p
 ```
 Enter the password predetermined, here : halopass
 
@@ -55,9 +63,9 @@ If halo does not have enough access:
 Connect to root: 
 
 ```bash
-  mysql -h openhalo -P 3308 -u halo -p openhalo
+  mysql -h openhalo -P 3308 -u root -p openhalo
 ```
-Enter the password predetermined, here : halopass
+Enter the password predetermined, here : mysecret
 
 Grant all access to client 'halo':
 ```sql
@@ -175,6 +183,9 @@ SELECT * FROM users;
 
 The table `users` will be resolved as if working directly on a MySQL database.
 
+```sql
+\q --exit
+```
 ---
 
 ## Loading a MySQL Database From a `.sql` File
@@ -182,6 +193,12 @@ The table `users` will be resolved as if working directly on a MySQL database.
 If a database needs to be imported from a MySQL dump file, the process can be performed directly through the MySQL client connected to OpenHalo.
 
 ### Importing the SQL File
+
+Connect using a MySQL client (port 3308):
+
+```bash
+  mysql -h openhalo -P 3308 -u halo -p openhalo
+```
 
 Ensure that the target database exists:
 
@@ -191,7 +208,7 @@ CREATE DATABASE mydb;
 
 Add a volume in the 'compose.yaml' in the part 'volumes' of openhalo:
 ```
-- /pathtofile on pc/name_basics_mysql.sql:/home/halo/ohdata/name_basics_mysql.sql:ro
+- /pathtofile on pc/name_basics_mysql.sql:/home/halo/name_basics_mysql.sql:ro
 ````
 Link the file on your computer to a virtual path on docker
 ro = read only
@@ -199,20 +216,57 @@ ro = read only
 Exit the MySQL prompt if needed, then run:
 
 ```bash
-mysql -h mysqldb -u halo -p -p mydb < /path/to/file.sql
+mysql -h openhalo -P 3308 -u halo -p -p mydb < /home/halo/name_basics_mysql.sql
 ```
+
+Enter halo's password 
 
 OpenHalo will process the SQL file exactly as a MySQL server would, translating supported MySQL constructs into PostgreSQL.
 
 ---
 ## Validating the Imported Structure in PostgreSQL
 
+Connect to PostgreSQL (port 5434 on Dockercompose):
+```bash
+psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
+```
+ 
 Once the import is complete, the new schema will be available in PostgreSQL under the same database name:
 
 ```sql
 \dn
+```
+You should see this :
+
+```sql
+      List of schemas
+        Name        | Owner 
+--------------------+-------
+ mydb               | halo
+ mys_informa_schema | halo
+ mys_sys            | halo
+ mysql              | halo
+ performance_schema | halo
+ public             | halo
+ sys                | halo
+(7 rows)
+```
+
+``` sql
 \dt mydb.*
-SELECT * FROM mydb.<table_name>;
+```
+You should see this : 
+
+```sql
+          List of relations
+ Schema |    Name     | Type  | Owner 
+--------+-------------+-------+-------
+ mydb   | name_basics | table | halo
+(1 row)
+```
+
+```sql
+SELECT * FROM mydb.name_basics;
 ```
 
 This ensures that the full database structure and its data have been successfully translated and stored.
