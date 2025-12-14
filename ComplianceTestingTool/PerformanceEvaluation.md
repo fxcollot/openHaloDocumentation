@@ -65,7 +65,7 @@ The script calculates the ratio between OpenHalo and MySQL execution time for sp
 - 🟢 **Faster:** Performance gain achieved (often observed on complex joins).
 
 ### Manual Debugging (EXPLAIN)
-For queries flagged as 🔴 (Red), we perform a manual `EXPLAIN (ANALYZE)` to understand the PostgreSQL planner's decision:
+For queries flagged as 🔴 (Red), we can perform a manual `EXPLAIN (ANALYZE)` to understand the PostgreSQL planner's decision:
 
 ```sql
 -- Run manually on OpenHalo for flagged queries
@@ -74,17 +74,15 @@ EXPLAIN (ANALYZE, BUFFERS) SELECT ...;
 
 We specifically check for sequential scans on large tables or unused indexes.
 
-##Artifacts & Deliverables
+## Artifacts & Deliverables
+
 The validation pipeline automatically generates the following artifacts for the client review:
 
-1. `openhalo_full_compatibility_report.json`:
-
-Raw data containing every query execution time, status, and error message.
-
-2. `benchmark_full_report.png`:
-
-Visual comparison of TPS and P95 Latency under load.
-
-3. `benchmark_complex_queries.png`:
+* **`openhalo_full_compatibility_report.json`**
+    * Raw data containing every query execution time, status, and error message.
+* **`benchmark_full_report.png`**
+    * Visual comparison of TPS and P95 Latency under load.
+* **`benchmark_complex_queries.png`**
+    * Specific comparison of complex operations (Joins, Subqueries) where PostgreSQL engines usually differ from MySQL.
 
 Specific comparison of complex operations (Joins, Subqueries) where PostgreSQL engines usually differ from MySQL.
