@@ -64,12 +64,21 @@ class DualDatabaseConnector:
             print("Warning: Continuing tests with OpenHalo only.")
     
     def close(self):
+        # On protège la fermeture d'OpenHalo
         if self.openhalo_conn:
-            self.openhalo_conn.close()
-            print("\nClosed OpenHalo connection.")
+            try:
+                self.openhalo_conn.close()
+                print("\nClosed OpenHalo connection.")
+            except:
+                pass # Déjà fermé ou erreur réseau, on ignore
+
+        # On protège la fermeture de MySQL
         if self.mysql_conn:
-            self.mysql_conn.close()
-            print("Closed MySQL connection.")
+            try:
+                self.mysql_conn.close()
+                print("Closed MySQL connection.")
+            except:
+                pass
 
 # --- Schema Inspector ---
 
@@ -288,25 +297,34 @@ class DualQueryTester:
 
     def execute_query(self, query: str, conn) -> Tuple[List, float]:
         """Execute a query on a given connection and return results + execution time"""
+
+        try:
+            # On vérifie si la connexion est active, sinon on reconnecte (3 tentatives)
+            if conn:
+                conn.ping(reconnect=True, attempts=3, delay=1)
+        except Exception:
+            # Si le ping échoue, on laisse le curseur tenter sa chance (et échouer proprement)
+            pass
+
         cursor = conn.cursor()
         try:
             start = time.perf_counter()
             # Handle multiple statements if necessary, though simpler is better for timing
             cursor.execute(query)
             
-            query_upper = query.strip().upper()
-            if any(query_upper.startswith(x) for x in ['SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'CALL', 'CHECK']):
+            query_clean = query.strip().upper().lstrip('(').strip()
+            
+            if any(query_clean.startswith(x) for x in ['SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'CALL', 'CHECK']):
                 try:
                     results = cursor.fetchall()
                 except mysql.connector.Error as e:
-                    # Some queries like CALL might not return fetchable results depending on the proc
                     if "No result set" in str(e):
                         results = []
                     else:
                         raise e
             else:
                 results = []
-                conn.commit() 
+                conn.commit()
             
             end = time.perf_counter()
             return results, (end - start) * 1000  # ms
@@ -524,51 +542,78 @@ class StressTester:
         self.duration = duration_seconds
 
     def _worker_task(self):
-        """Simule un utilisateur actif"""
+        """Simule un utilisateur actif et mesure les latences"""
         try:
             conn = mysql.connector.connect(**self.db_config)
             cursor = conn.cursor()
         except:
-            return 0, 1 # 0 queries, 1 connection error
+            return [], 1 # Renvoie une liste vide et 1 erreur
 
-        queries_run = 0
+        latencies = [] # On stocke le temps de chaque requête ici
         errors = 0
         start_time = time.time()
         
         while time.time() - start_time < self.duration:
             try:
-                # Requête mixte simple (Lecture)
+                req_start = time.perf_counter() # Top chrono
+                
+                # Requête simple de lecture
                 cursor.execute("SELECT * FROM name_basics WHERE primaryprofession = 'actor' LIMIT 1")
                 cursor.fetchall()
-                queries_run += 1
+                
+                req_end = time.perf_counter() # Fin chrono
+                
+                # On ajoute la durée en millisecondes (ms) à la liste
+                latencies.append((req_end - req_start) * 1000)
+                
             except Exception:
                 errors += 1
         
         conn.close()
-        return queries_run, errors
+        return latencies, errors
 
     def run_benchmark(self, target_name):
         print(f"\n🔥 STRESS TEST: {target_name} ({self.num_threads} threads, {self.duration}s)")
-        total_queries = 0
+        
+        all_latencies = []
         total_errors = 0
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_threads) as executor:
             futures = [executor.submit(self._worker_task) for _ in range(self.num_threads)]
             for future in concurrent.futures.as_completed(futures):
-                q, e = future.result()
-                total_queries += q
+                lats, e = future.result()
+                all_latencies.extend(lats) # On fusionne les résultats de tous les threads
                 total_errors += e
 
+        total_queries = len(all_latencies)
+        
+        # Calculs statistiques
         if self.duration > 0:
             tps = total_queries / self.duration
         else:
             tps = 0
             
-        print(f"  ➜ Total Queries: {total_queries}")
-        print(f"  ➜ Errors: {total_errors}")
-        print(f"  ➜ TPS (Transac/Sec): {tps:.2f}")
-        return tps
+        if all_latencies:
+            avg_lat = mean(all_latencies)
+            all_latencies.sort()
+            # P95 : La latence pire que 95% des utilisateurs
+            p95_lat = all_latencies[int(len(all_latencies) * 0.95)]
+        else:
+            avg_lat = 0
+            p95_lat = 0
 
+        print(f"  ➜ TPS (Transac/Sec): {tps:.2f}")
+        print(f"  ➜ Latence Moyenne  : {avg_lat:.2f} ms")
+        print(f"  ➜ Latence P95      : {p95_lat:.2f} ms")
+        print(f"  ➜ Erreurs          : {total_errors}")
+        
+        # On retourne un dictionnaire, pas juste un float
+        return {
+            "tps": tps,
+            "avg_latency": avg_lat,
+            "p95_latency": p95_lat
+        }
+    
 def test_bulk_insert(target_name, config, batch_size=5000):
     print(f"\n📦 BULK INSERT TEST: {target_name} ({batch_size} rows)")
     try:
@@ -719,17 +764,38 @@ def main():
 
     # --- 5. Index Management ---
     print("\n--- 5. Index Management ---")
-    # Note: These might fail if index already exists, usually fine in testing
-    try:
-        tester.test_query("md_5.1", "CREATE INDEX VARCHAR", 
-            f"CREATE INDEX idx_profession ON {table_nb}(primaryprofession);")
-    except: pass
 
-    try:
-        tester.test_query("md_5.2", "CREATE INDEX INT", 
-            f"CREATE INDEX idx_birthyear ON {table_nb}(birthyear);")
-    except: pass
+    # --- NETTOYAGE PRÉALABLE (Clean Slate) ---
+    # Pour que le test "CREATE INDEX" fonctionne à tous les coups (et mesure vraiment le temps),
+    # il faut d'abord supprimer les index s'ils existent déjà.
     
+    def safe_drop_index(conn, table, index_name):
+        try:
+            if conn:
+                cursor = conn.cursor()
+                cursor.execute(f"DROP INDEX {index_name} ON {table}")
+                conn.commit()
+                cursor.close()
+        except:
+            pass # On ignore l'erreur si l'index n'existait pas encore
+
+    # On nettoie sur les deux bases
+    safe_drop_index(db.openhalo_conn, table_nb, 'idx_profession')
+    safe_drop_index(db.mysql_conn, table_nb, 'idx_profession')
+    safe_drop_index(db.openhalo_conn, table_nb, 'idx_birthyear')
+    safe_drop_index(db.mysql_conn, table_nb, 'idx_birthyear')
+
+    # --- EXÉCUTION DES TESTS ---
+    
+    # Test 5.1 : Maintenant ça va marcher car on a fait le ménage avant
+    tester.test_query("md_5.1", "CREATE INDEX VARCHAR", 
+        f"CREATE INDEX idx_profession ON {table_nb}(primaryprofession);")
+
+    # Test 5.2
+    tester.test_query("md_5.2", "CREATE INDEX INT", 
+        f"CREATE INDEX idx_birthyear ON {table_nb}(birthyear);")
+    
+    # Test 5.3 : Vérification
     tester.test_query("md_5.3", "SHOW INDEX", f"SHOW INDEX FROM {table_nb};")
 
     # --- 6. Join Operations ---
@@ -1118,11 +1184,16 @@ def main():
             ax.grid(axis='y', linestyle='--', alpha=0.3)
             
             # Ajout des valeurs au dessus des barres
+            # Ajout des valeurs au dessus des barres
             def autolabel(rects):
                 for rect in rects:
                     height = rect.get_height()
+                    # CORRECTION ICI : on utilise get_width() et get_x()
+                    width = rect.get_width()
+                    x_pos = rect.get_x()
+                    
                     ax.annotate(f'{height:.1f}',
-                                xy=(rect.get_x() + rect.width / 2, height),
+                                xy=(x_pos + width / 2, height),
                                 xytext=(0, 3),  # 3 points vertical offset
                                 textcoords="offset points",
                                 ha='center', va='bottom', fontsize=8)
