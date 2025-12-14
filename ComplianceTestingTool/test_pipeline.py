@@ -15,6 +15,10 @@ import uuid
 from copy import deepcopy
 import random
 import concurrent.futures
+import matplotlib.pyplot as plt
+import matplotlib 
+matplotlib.use('Agg')
+import numpy as np # Utile pour positionner les barres
 
 @dataclass
 class QueryResult:
@@ -88,7 +92,7 @@ class DynamicQueryBuilder:
             'numeric': ['release_year', 'rating'],
             'string': ['film_id', 'title', 'genre']
         }
-        # Ajoute d'autres tables si nécessaire
+        # Ajout d'autres tables si nécessaire
     }
 
     def __init__(self, table_name):
@@ -174,8 +178,6 @@ class DynamicQueryBuilder:
             return f"Dynamic AGG ({agg_func} by {group_col})", base
         else:
             return f"Dynamic AGG Simple ({agg_func})", f"SELECT {agg_func}({col}) FROM {self.table};"
-        
-        # --- AJOUTS V2 : NOUVELLES MÉTHODES DYNAMIQUES ---
 
     def build_complex_where(self, limit=10):
         """Génère des WHERE avec IN, BETWEEN et OR"""
@@ -362,13 +364,11 @@ class DualQueryTester:
             mean_time = mean(times)
             median_time = median(times)
 
-            times.sort()
-            idx_p95 = int(len(times) * 0.95)
-            p95_val = times[idx_p95] if times else 0
+            p95_val = 0
 
             status = self.classify_performance(mean_time)
             
-            print(f"  [{target}] Mean: {mean_time:.2f}ms, P95: {p95_val:.2f}ms, Rows: {rows_count}, Status: {status}")
+            print(f"  [{target}] Mean: {mean_time:.2f}ms, Rows: {rows_count}, Status: {status}")
             return QueryResult(
                 target=target,
                 query_id=query_id,
@@ -451,15 +451,38 @@ class DualQueryTester:
         print(f"  ❌ Errors             : {sum(r.status in ('Error','SyntaxError','MissingFeature') for r in oh)}")
 
         # ---- Slowest OpenHalo queries ----
+        # ---- Slowest OpenHalo queries (COMPARATIVE) ----
+        # C'est la partie la plus intéressante : Les goulots d'étranglement
         slow_oh = sorted(
             [r for r in oh if r.mean_time > 0],
             key=lambda r: r.mean_time,
             reverse=True
         )[:10]
 
-        print("\n🐢 Top 10 slowest OpenHalo queries")
+        print("\n🐢 TOP 10 REQUÊTES LES PLUS LENTES SUR OPENHALO (vs MySQL)")
+        print(f"  {'ID':<12} | {'OpenHalo (ms)':>15} | {'MySQL (ms)':>15} | {'Différence':>12}")
+        print("-" * 65)
+        
         for r in slow_oh:
-            print(f"  {r.query_id:<15} {r.mean_time:>8.2f} ms  ({r.query_type})")
+            oh_time = r.mean_time
+            # On cherche le temps correspondant chez MySQL
+            my_r = mysql_map.get(r.query_id)
+            my_time = my_r.mean_time if my_r else 0
+            
+            # Calcul de la différence
+            diff_str = ""
+            if my_time > 0:
+                ratio = oh_time / my_time
+                if ratio > 1.5:
+                    diff_str = f"x{ratio:.1f} plus lent 🔴"
+                elif ratio < 0.7:
+                    diff_str = f"x{1/ratio:.1f} plus rapide 🟢"
+                else:
+                    diff_str = "Similaire ⚪"
+            else:
+                diff_str = "N/A"
+
+            print(f"  {r.query_id:<12} | {oh_time:>15.2f} | {my_time:>15.2f} | {diff_str}")
 
         # ---- MySQL faster than OpenHalo ----
         print("\n⚡ Queries faster on MySQL than OpenHalo")
@@ -640,7 +663,6 @@ def main():
         query_id = f"dyn_agg_{i}"
         tester.test_query(query_id, desc, sql)
 
-    # ... (Suite de la section Dynamic Random Testing) ...
 
     # Phase 3: Filtres Complexes (IN, BETWEEN)
     print("\n--- 3. Génération de Filtres Complexes ---")
@@ -810,8 +832,7 @@ def main():
     # --- 9. Advanced SQL ---
     print("\n--- 9. Advanced SQL ---")
     tester.test_query("md_9.1", "UNION (Expected Fail on OH)", 
-        f"SELECT primaryname FROM {table_nb} WHERE primaryprofession = 'actor' LIMIT 5 UNION SELECT primaryname FROM {table_nb} WHERE primaryprofession = 'actress' LIMIT 5;")
-    
+        f"(SELECT primaryname FROM {table_nb} WHERE primaryprofession = 'actor' LIMIT 5) UNION (SELECT primaryname FROM {table_nb} WHERE primaryprofession = 'actress' LIMIT 5);")    
     tester.test_query("md_9.2", "CASE WHEN", 
         f"""
         SELECT primaryname, 
@@ -840,6 +861,14 @@ def main():
     # Test violation
     tester.test_query("md_10.1_fail", "Test UNIQUE Violation", "INSERT INTO films (film_id, title) VALUES ('tt999', 'Example Film 1');")
     
+    # --- Correction Test 10.2 ---
+    
+    # Étape 1 : On supprime les acteurs dans film_actor qui n'existent pas dans name_basics
+    # (Sinon la création de la FK échouera car les données ne sont pas intègres)
+    tester.test_query("md_10.2_pre", "Cleanup Orphan Records", 
+        f"DELETE FROM film_actor WHERE nconst NOT IN (SELECT nconst FROM {table_nb});")
+
+    # Étape 2 : Maintenant que les données sont propres, on peut ajouter la FK
     tester.test_query("md_10.2", "Add FK Constraint", 
         f"ALTER TABLE film_actor ADD CONSTRAINT fk_actor FOREIGN KEY (nconst) REFERENCES {table_nb}(nconst);")
     
@@ -873,9 +902,36 @@ def main():
 
     # --- 12. Data Export ---
     print("\n--- 12. Data Export ---")
-    tester.test_query("md_12.1", "INTO OUTFILE (Expected Fail)", 
-        f"SELECT * FROM {table_nb} LIMIT 10 INTO OUTFILE '/tmp/test_export.csv';")
+    # Par défaut, on tente /tmp/
+    export_path = "/tmp/test_export.csv"
+    
+    # TENTATIVE DE DÉTECTION DU DOSSIER AUTORISÉ (MySQL)
+    try:
+        if db.mysql_conn:
+            cursor = db.mysql_conn.cursor()
+            cursor.execute("SELECT @@secure_file_priv")
+            row = cursor.fetchone()
+            cursor.close()
+            
+            # Si MySQL a une restriction de dossier, on l'utilise
+            if row and row[0]:
+                secure_path = row[0]
+                # On s'assure que le chemin finit bien par / ou \
+                if not secure_path.endswith('/') and not secure_path.endswith('\\'):
+                    secure_path += '/'
+                
+                # On génère un nom de fichier unique pour éviter l'erreur "File already exists"
+                filename = f"test_export_{random.randint(1000,9999)}.csv"
+                export_path = f"{secure_path}{filename}"
+                print(f"  [System] MySQL secure path detected. Using: {export_path}")
+    except Exception as e:
+        print(f"  [System] Warning: Could not detect secure_file_priv: {e}")
 
+    # On lance le test avec le chemin adapté
+    # Note : OpenHalo échouera de toute façon (Syntax Error), donc le chemin importe peu pour lui.
+    # Pour MySQL, cela devrait maintenant passer au VERT (si l'utilisateur a les droits FILE).
+    tester.test_query("md_12.1", "INTO OUTFILE (Expected Fail on OH)", 
+        f"SELECT * FROM {table_nb} LIMIT 10 INTO OUTFILE '{export_path.replace(chr(92), '/')}' FIELDS TERMINATED BY ',' ENCLOSED BY '\"' LINES TERMINATED BY '\\n';")
     import subprocess
 
     # ... dans la section 12 ...
@@ -949,7 +1005,7 @@ def main():
     # 10. Get Diagnostics
     tester.test_query("prob_10", "GET DIAGNOSTICS", "GET DIAGNOSTICS @rows = ROW_COUNT;")
 
-    # --- 14. PERFORMANCE BENCHMARKS (NOUVEAU) ---
+    # --- 14. PERFORMANCE BENCHMARKS ---
     print("\n" + "="*60)
     print("PERFORMANCE BENCHMARKS (Stress & Bulk)")
     print("="*60)
@@ -958,13 +1014,130 @@ def main():
     test_bulk_insert("OpenHalo", openhalo_config)
     test_bulk_insert("MySQL", mysql_config)
 
-    # 2. Stress Test (Concurrency)
-    # On simule 10 utilisateurs pendant 5 secondes
+    # 2. Stress Test (Concurrency) & Graphiques Complets
+    print("\n--- Generating Performance Benchmarks (TPS & Latency) ---")
+    
+    results_data = {}
+    
+    # Test OpenHalo
     stress = StressTester(openhalo_config, num_threads=10, duration_seconds=5)
-    stress.run_benchmark("OpenHalo")
+    results_data['OpenHalo'] = stress.run_benchmark("OpenHalo")
 
+    # Test MySQL
     stress_mysql = StressTester(mysql_config, num_threads=10, duration_seconds=5)
-    stress_mysql.run_benchmark("MySQL")
+    results_data['MySQL'] = stress_mysql.run_benchmark("MySQL")
+
+    # --- Génération des Graphiques (TPS et Latence) ---
+    try:
+        targets = list(results_data.keys())
+        tps_vals = [results_data[t]['tps'] for t in targets]
+        lat_vals = [results_data[t]['p95_latency'] for t in targets]
+        
+        # Création d'une figure avec 2 sous-graphiques (1 ligne, 2 colonnes)
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        
+        colors = ['#4CAF50', '#2196F3'] # Vert, Bleu
+
+        # --- Graphique 1 : TPS (Débit) ---
+        bars1 = ax1.bar(targets, tps_vals, color=colors, width=0.5)
+        ax1.set_title('Débit (TPS)\n(Plus c\'est haut, mieux c\'est)', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Transactions / Seconde')
+        ax1.grid(axis='y', linestyle='--', alpha=0.5)
+        
+        # Etiquettes TPS
+        for bar in bars1:
+            height = bar.get_height()
+            ax1.text(bar.get_x() + bar.get_width()/2., height, f'{height:.0f}', ha='center', va='bottom', fontweight='bold')
+
+        # --- Graphique 2 : Latence P95 (Temps de réponse) ---
+        bars2 = ax2.bar(targets, lat_vals, color=colors, width=0.5)
+        ax2.set_title('Latence P95 (Temps de réponse)\n(Plus c\'est bas, mieux c\'est)', fontsize=12, fontweight='bold')
+        ax2.set_ylabel('Millisecondes (ms)')
+        ax2.grid(axis='y', linestyle='--', alpha=0.5)
+
+        # Etiquettes Latence
+        for bar in bars2:
+            height = bar.get_height()
+            ax2.text(bar.get_x() + bar.get_width()/2., height, f'{height:.2f} ms', ha='center', va='bottom', fontweight='bold')
+
+        plt.suptitle("Benchmark OpenHalo vs MySQL (10 Threads)", fontsize=16)
+        plt.tight_layout()
+        
+        graph_filename = "benchmark_full_report.png"
+        plt.savefig(graph_filename, dpi=300)
+        print(f"\n📊 Graphique complet généré : {graph_filename}")
+        
+    except Exception as e:
+        print(f"⚠ Erreur graphique : {e}")
+
+    # --- 15. GRAPHIQUE DES REQUÊTES COMPLEXES (NOUVEAU) ---
+    print("\n--- Generating Complex Queries Comparison Graph ---")
+
+    # Liste des IDs des requêtes "lourdes" qu'on veut comparer visuellement
+    target_ids = [
+        'md_6.1',   # Multi-Table JOIN
+        'md_6.2',   # LEFT JOIN + Aggregation
+        'md_11.2',  # Correlated Subquery (Souvent lent sur MySQL, rapide sur PG)
+        'md_3.4',   # Advanced Grouping
+        'md_10.1'   # Constraint Check
+    ]
+    
+    # Extraction des données
+    labels = []
+    oh_times = []
+    mysql_times = []
+    
+    # On parcourt les résultats pour trouver les temps moyens
+    # On utilise un dictionnaire pour accès rapide
+    oh_results = {r.query_id: r.mean_time for r in tester.results if r.target == 'OpenHalo'}
+    mysql_results = {r.query_id: r.mean_time for r in tester.results if r.target == 'MySQL'}
+    
+    for qid in target_ids:
+        if qid in oh_results and qid in mysql_results:
+            labels.append(qid)
+            oh_times.append(oh_results[qid])
+            mysql_times.append(mysql_results[qid])
+            
+    # Création du Graphique Comparatif
+    if labels:
+        try:
+            x = np.arange(len(labels))  # Position des labels
+            width = 0.35  # Largeur des barres
+            
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            rects1 = ax.bar(x - width/2, oh_times, width, label='OpenHalo', color='#4CAF50')
+            rects2 = ax.bar(x + width/2, mysql_times, width, label='MySQL', color='#2196F3')
+            
+            # Textes et Titres
+            ax.set_ylabel('Temps d\'exécution (ms)')
+            ax.set_title('Performance sur Requêtes Complexes (Latence Moyenne)')
+            ax.set_xticks(x)
+            ax.set_xticklabels(labels)
+            ax.legend()
+            ax.grid(axis='y', linestyle='--', alpha=0.3)
+            
+            # Ajout des valeurs au dessus des barres
+            def autolabel(rects):
+                for rect in rects:
+                    height = rect.get_height()
+                    ax.annotate(f'{height:.1f}',
+                                xy=(rect.get_x() + rect.width / 2, height),
+                                xytext=(0, 3),  # 3 points vertical offset
+                                textcoords="offset points",
+                                ha='center', va='bottom', fontsize=8)
+
+            autolabel(rects1)
+            autolabel(rects2)
+            
+            plt.tight_layout()
+            plt.savefig("benchmark_complex_queries.png", dpi=300)
+            print(f"📊 Graphique requêtes complexes généré : benchmark_complex_queries.png")
+            
+        except Exception as e:
+            print(f"⚠ Erreur graphe complexe : {e}")
+    else:
+        print("⚠ Pas assez de données pour le graphe complexe.")
     
     # --- Finalize ---
     tester.generate_report()
