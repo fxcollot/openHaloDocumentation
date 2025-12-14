@@ -51,7 +51,6 @@ For every functional test query, the script compares:
 - **Execution Status:** Did both engines succeed?
 - **Row Counts:** Did both engines return the same number of rows? (e.g., `17,706 rows` on both).
 
-*Note: In case of discrepancy, the script logs the difference in the console output.*
 
 ---
 
