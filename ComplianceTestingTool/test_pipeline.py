@@ -502,6 +502,31 @@ class DualQueryTester:
 
             print(f"  {r.query_id:<12} | {oh_time:>15.2f} | {my_time:>15.2f} | {diff_str}")
 
+        # ---- OpenHalo Wins (Faster than MySQL) ----
+        fast_oh = []
+        for qid, oh_r in oh_map.items():
+            my_r = mysql_map.get(qid)
+            # On compare uniquement si les deux ont réussi
+            if my_r and oh_r.mean_time > 0 and my_r.mean_time > 0:
+                # Si OH est au moins 10% plus rapide (ratio < 0.9)
+                if oh_r.mean_time < (my_r.mean_time * 0.9):
+                    fast_oh.append((qid, oh_r.mean_time, my_r.mean_time))
+        
+        # Tri par le gain de performance (le plus gros écart en premier)
+        fast_oh.sort(key=lambda x: x[2] - x[1], reverse=True)
+
+        print("\n🚀 TOP REQUÊTES OÙ OPENHALO BAT MYSQL (Hall of Fame)")
+        print(f"  {'ID':<12} | {'OpenHalo (ms)':>15} | {'MySQL (ms)':>15} | {'Gain':>12}")
+        print("-" * 65)
+        
+        if fast_oh:
+            for qid, oh_t, my_t in fast_oh[:10]: # Top 10
+                gain = my_t - oh_t
+                ratio = my_t / oh_t
+                print(f"  {qid:<12} | {oh_t:>15.2f} | {my_t:>15.2f} | -{gain:.1f}ms (x{ratio:.1f})")
+        else:
+            print("  Aucune victoire significative détectée sur ce dataset.")
+
         # ---- MySQL faster than OpenHalo ----
         print("\n⚡ Queries faster on MySQL than OpenHalo")
         for qid, oh_r in oh_map.items():
@@ -533,6 +558,30 @@ class DualQueryTester:
             print(f"  MySQL    : {mean(my_times):.2f} ms")
 
         print("\n✅ End of synthesis report")
+
+        # ---- Category Breakdown ----
+        print("\n📂 PERFORMANCE PAR CATÉGORIE")
+        print(f"  {'Catégorie':<25} | {'OpenHalo Avg':>12} | {'MySQL Avg':>12}")
+        print("-" * 55)
+        
+        categories = {
+            'Simple SELECT': ['md_1', 'dyn_sel'],
+            'Aggregations': ['md_3', 'dyn_agg'],
+            'Joins': ['md_6'],
+            'Subqueries': ['md_11', 'dyn_sub'],
+            'DML (Write)': ['md_4', 'dyn_dml'],
+            'String/Math': ['md_8', 'dyn_func']
+        }
+        
+        for cat_name, prefixes in categories.items():
+            # Filtrer les résultats qui commencent par un des préfixes
+            oh_cat = [r.mean_time for r in oh if any(r.query_id.startswith(p) for p in prefixes) and r.mean_time > 0]
+            my_cat = [r.mean_time for r in mysql if any(r.query_id.startswith(p) for p in prefixes) and r.mean_time > 0]
+            
+            oh_val = f"{mean(oh_cat):.2f} ms" if oh_cat else "N/A"
+            my_val = f"{mean(my_cat):.2f} ms" if my_cat else "N/A"
+            
+            print(f"  {cat_name:<25} | {oh_val:>12} | {my_val:>12}")
 
 
 class StressTester:
@@ -1209,7 +1258,49 @@ def main():
             print(f"⚠ Erreur graphe complexe : {e}")
     else:
         print("⚠ Pas assez de données pour le graphe complexe.")
+
+
+    # --- Graphique 3 : Scatter Plot (Comparaison directe) ---
+    # On crée une nouvelle figure pour ne pas surcharger la première
+    plt.figure(figsize=(10, 10))
     
+    # On récupère les paires de temps (uniquement quand les deux ont réussi)
+    common_ids = []
+    x_mysql = []
+    y_openhalo = []
+    
+    for r in tester.results:
+        if r.target == 'OpenHalo':
+            # Trouver le résultat MySQL correspondant
+            my_res = next((m for m in tester.results if m.target == 'MySQL' and m.query_id == r.query_id), None)
+            if my_res and r.mean_time > 0 and my_res.mean_time > 0:
+                # On filtre les outliers extrêmes (> 1000ms) pour garder le graphe lisible
+                if r.mean_time < 2000 and my_res.mean_time < 2000:
+                    common_ids.append(r.query_id)
+                    y_openhalo.append(r.mean_time)
+                    x_mysql.append(my_res.mean_time)
+
+    # Tracer les points
+    plt.scatter(x_mysql, y_openhalo, color='purple', alpha=0.6, label='Requêtes')
+    
+    # Tracer la ligne diagonale (y=x)
+    limit = max(max(x_mysql or [1]), max(y_openhalo or [1]))
+    plt.plot([0, limit], [0, limit], 'k--', label='Égalité parfaite')
+    
+    # Zone verte (OpenHalo plus rapide)
+    plt.fill_between([0, limit], 0, [0, limit], color='green', alpha=0.1, label='Zone OpenHalo Rapide')
+    # Zone rouge (MySQL plus rapide)
+    plt.fill_between([0, limit], [0, limit], limit, color='red', alpha=0.1, label='Zone MySQL Rapide')
+
+    plt.xlabel('Temps MySQL (ms)')
+    plt.ylabel('Temps OpenHalo (ms)')
+    plt.title('Comparaison Directe des Temps d\'Exécution')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.5)
+    
+    plt.savefig("benchmark_scatter_comparison.png", dpi=300)
+    print(f"📊 Graphique Scatter Plot généré : benchmark_scatter_comparison.png")
+
     # --- Finalize ---
     tester.generate_report()
     tester.generate_summary()
