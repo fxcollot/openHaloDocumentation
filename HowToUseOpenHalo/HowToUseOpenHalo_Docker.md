@@ -6,6 +6,16 @@ All MySQL queries are **automatically translated**, and data is stored in Postgr
 The full workflow is described below.
 
 ---
+## Remove all volumes from before 
+```terminal
+docker compose down -v
+```
+
+## Build the docker container
+```terminal
+docker compose up -d --build
+```
+
 ## Create the mysql schema 
 ```bash
   psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
