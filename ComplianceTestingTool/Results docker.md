@@ -1,3 +1,11 @@
+## Changes to the python script to adapt to the Dockerfile 
+```python
+def main():
+    # --- Configuration ---
+    openhalo_config = {'host': 'localhost', 'port': 3308, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
+    mysql_config = {'host': 'localhost', 'port': 3306, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
+```
+
 ## Write in Openhalo container 
 ``` sh
 python3 /home/halo/openhalo_test_suite.py
