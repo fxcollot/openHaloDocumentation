@@ -7,15 +7,27 @@ The full workflow is described below.
 
 ---
 ## Remove all volumes from before 
-```terminal
+```
 docker compose down -v
 ```
 
 ## Build the docker container
-```terminal
+```
 docker compose up -d --build
 ```
+You should see this : 
 
+```
+[+] Running 8/8
+ ✔ openhalo                         Built                                  0.0s 
+ ✔ Network openhalo_default         Created                                0.1s 
+ ✔ Volume "openhalo_openhalo_data"  C...                                   0.0s 
+ ✔ Volume "openhalo_mysqldb_data"   Cr...                                  0.0s 
+ ✔ Volume "openhalo_pg_data"        Created                                0.0s 
+ ✔ Container postgres               Started                                0.3s 
+ ✔ Container mysqldb                Started                                0.3s 
+ ✔ Container openhalo               Started                                0.4s
+```
 ## Create the mysql schema 
 ```bash
   psql -h 127.0.0.1 -p 5434 -U halo -d halo0root
