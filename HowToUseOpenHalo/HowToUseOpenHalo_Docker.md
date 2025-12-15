@@ -85,7 +85,7 @@ If halo does not have enough access:
 Connect to root: 
 
 ```bash
-  mysql -h openhalo -P 3308 -u root -p openhalo
+  mysql -h openhalo -P 3308 -u root -p 
 ```
 Enter the password predetermined, here : mysecret
 
@@ -103,7 +103,7 @@ exit;
 Connect using a MySQL client (port 3308):
 
 ```bash
-  mysql -h openhalo -P 3308 -u halo -p openhalo
+  mysql -h openhalo -P 3308 -u halo -p 
 ```
 
 ## Use the database:
@@ -219,7 +219,7 @@ If a database needs to be imported from a MySQL dump file, the process can be pe
 Connect using a MySQL client (port 3308):
 
 ```bash
-  mysql -h openhalo -P 3308 -u halo -p openhalo
+  mysql -h openhalo -P 3308 -u halo -p 
 ```
 
 Ensure that the target database exists:
