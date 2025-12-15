@@ -3,6 +3,7 @@
 python3 /home/halo/openhalo_test_suite.py
 ```
 ## Output 
+```
 ============================================================
 OpenHalo vs MySQL - Full Markdown Compatibility Suite
 ============================================================
@@ -471,4 +472,4 @@ SYNTHESIS REPORT – USEFUL METRICS
 Closed OpenHalo connection.
 
 ✓ Full Markdown Compatibility Suite Complete!
-sh-5.1$ 
+```
