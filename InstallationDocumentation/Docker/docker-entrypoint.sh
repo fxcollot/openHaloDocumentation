@@ -3,46 +3,99 @@ set -e
 
 echo "=== Start of Openhalo (PostgreSQL + compat MySQL) ==="
 
+# Define default environment variables if not set
+PGUSER=${PGUSER:-halo}
+PGPASSWORD=${PGPASSWORD:-mysecret}
+DBNAME=${DBNAME:-openhalo}
+PGDATA=${PGDATA:-/home/halo/ohdata}
+PYTHON_SCRIPT="/home/halo/openhalo_test_suite.py"
+
+# --- PART 1: INITIALIZATION (First run only) ---
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
-    echo "Initializing PostgreSQL..."
-    # Initialize the database cluster
+    echo "--- Initialization Phase ---"
+
+    # Cluster initialization (UTF8 is CRITICAL for aux_mysql)
+    echo "1. Initializing PostgreSQL (UTF8)..."
     initdb -D "$PGDATA" --encoding=UTF8 --lc-collate='C' --lc-ctype='C'
 
-    echo "Configuring MySQL compatibility..."
-    # Configuration added to postgresql.conf
+    # Configuration of configuration files
+    echo "2. Configuring MySQL compatibility mode..."
     echo "database_compat_mode = 'mysql'"        >> $PGDATA/postgresql.conf
     echo "mysql.listener_on = true"             >> $PGDATA/postgresql.conf
     echo "mysql.port = 3308"                    >> $PGDATA/postgresql.conf
     echo "listen_addresses = '*'"               >> $PGDATA/postgresql.conf
     echo "port = 5434"                          >> $PGDATA/postgresql.conf
     echo "unix_socket_directories = '/tmp'"     >> $PGDATA/postgresql.conf
-
-    # Access configuration (allows passwordless local connection)
     echo "host all all all trust"               >> $PGDATA/pg_hba.conf
 
-    echo "Temporary start to create the database..."
-    
-    # Temporarily start the server in the background
-    # Note: pg_ctl is used for temporary initialization
+    # --- Temporary Start 1: Create DB/User ---
+    echo "3. Temporary start for creating DB/User..."
     pg_ctl -D "$PGDATA" -l "$PGDATA/temp_logfile" start
     
-    # Wait for the server to be ready (default connection to template1)
-    until pg_isready -h /tmp -U $(whoami) -d template1; do
-        echo "Waiting for PostgreSQL (temp) via socket..."
+    # Wait for temporary server to be ready
+    until pg_isready -h /tmp -U "$PGUSER" -d template1; do
+        echo "   (Waiting for PostgreSQL via socket...)"
         sleep 1
     done
 
-    echo "Creating the 'openhalo' database and setting the password for user 'halo'..."
-    # Execute SQL commands to create the DB and user
-    psql -h /tmp -U $(whoami) -d template1 -c "CREATE DATABASE openhalo OWNER halo; ALTER USER halo WITH PASSWORD 'mysecret';"
+    # Create DB and User
+    echo "4. Creating database '$DBNAME' and password for '$PGUSER'..."
+    psql -h /tmp -U "$PGUSER" -d template1 -c "CREATE DATABASE $DBNAME OWNER $PGUSER;"
+    psql -h /tmp -U "$PGUSER" -d template1 -c "ALTER USER $PGUSER WITH PASSWORD '$PGPASSWORD';"
     
-    # Stop the temporary server
+    # Stop the server temporary d'initialisation
     pg_ctl -D "$PGDATA" stop -m fast
-    echo "Temporary server stopped. DB 'openhalo' created."
+    echo "Temporary server stopped."
+
+    # --- Temporary Start 2: Extension Installation ---
+    echo "5. Targeted restart for installing the 'aux_mysql' extension..."
+    pg_ctl -D "$PGDATA" -l "$PGDATA/temp_logfile_ext" start
+    
+    # Wait for the target database to be ready
+    until pg_isready -h /tmp -U "$PGUSER" -d "$DBNAME"; do
+        echo "   (Waiting for the target database '$DBNAME'...)"
+        sleep 1
+    done
+
+    # Critical extension installation (This creates the 'mysql' schema itself)
+    echo "6. Installing the 'aux_mysql' extension..."
+    psql -h /tmp -U "$PGUSER" -d "$DBNAME" -c "CREATE EXTENSION aux_mysql;"
+
+    # Final stop of the temporary initialization server
+    pg_ctl -D "$PGDATA" stop -m fast
+    echo "--- Initialization complete. ---"
 fi
 
-# Final Start of OpenHalo Server
-echo "Starting PostgreSQL server..."    
-# Use 'exec' so that the PostgreSQL process becomes PID 1 in the container.
-# We pass the configuration via the command line to ensure listen_addresses='*' is applied.
-exec $HALO_HOME/bin/postgres -D "$PGDATA" -c "listen_addresses='*'" -c "port=5434"
+# --- PART 2: START AND RUN SCRIPT (For all startups) ---
+
+# Start the OpenHalo server in the background (&)
+echo "7. Starting the OpenHalo server in the background..."    
+$HALO_HOME/bin/postgres -D "$PGDATA" -c "listen_addresses='*'" -c "port=5434" -l "$PGDATA/server.log" &
+
+# Wait for the OpenHalo server (PostgreSQL) to be fully available
+until pg_isready -h localhost -p 5434 -U "$PGUSER" -d "$DBNAME"; do
+    echo "   (Waiting for the OpenHalo server...) "
+    sleep 2
+done
+
+echo "8. OpenHalo server is operational."
+# Execute the Python script if present
+if [ -f "$PYTHON_SCRIPT" ]; then
+    echo "9. Executing Python test script: $PYTHON_SCRIPT"
+    
+    # Execute the script
+    python3 "$PYTHON_SCRIPT"
+    
+    # Check the return code for success/failure
+    if [ $? -eq 0 ]; then
+        echo "Python script completed SUCCESSFULLY."
+    else
+        echo "Python script completed with FAILURE (code $?)."
+    fi
+else
+    echo "9. Python script ($PYTHON_SCRIPT) not found, skipping test step."
+fi
+
+# Keep the container active by following the main log (PID 1)
+echo "10. Keeping the container active (tail -f the logs)..."
+exec tail -f "$PGDATA/server.log"
