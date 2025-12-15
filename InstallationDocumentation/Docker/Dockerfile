@@ -11,7 +11,7 @@ RUN dnf install -y \
     mariadb-connector-c mariadb-connector-c-devel \
     libicu libicu-devel zlib-devel readline-devel tzdata \
     perl perl-core \
-    python3 python3-pip && \ 
+    python3 python3-pip python3-devel freetype-devel && \ 
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
     echo $TZ > /etc/timezone && \
     dnf clean all
@@ -50,10 +50,14 @@ RUN microdnf install -y \
     tzdata \
     git \
     python3 \ 
-    python3-pip && \
+    python3-pip \
+    python3-devel \ 
+    gcc make freetype-devel &&\
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
     echo $TZ > /etc/timezone && \
     microdnf clean all
+
+RUN pip3 install mysql-connector-python matplotlib numpy
 
 # Create the destination directory before copying (Security)
 RUN mkdir -p $HALO_HOME/share
@@ -74,11 +78,11 @@ RUN groupadd -g 1500 halo && \
     chown -R halo:halo /home/halo /var/run/openhalo $HALO_HOME && \
     chmod 700 /home/halo/ohdata
 
-# Copie du script Python
+# Copy the Python script for compliance testing
 COPY ComplianceTestingTool/openhalo_test_suite.py /home/halo/openhalo_test_suite.py
 
 # Copy the entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY InstallationDocumentation/Docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 
