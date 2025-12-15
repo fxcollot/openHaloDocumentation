@@ -10,7 +10,8 @@ RUN dnf install -y \
     postgresql postgresql-devel \
     mariadb-connector-c mariadb-connector-c-devel \
     libicu libicu-devel zlib-devel readline-devel tzdata \
-    perl perl-core && \
+    perl perl-core \
+    python3 python3-pip && \ 
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
     echo $TZ > /etc/timezone && \
     dnf clean all
@@ -47,7 +48,9 @@ RUN microdnf install -y \
     zlib \
     readline \
     tzdata \
-    git && \
+    git \
+    python3 \ 
+    python3-pip && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
     echo $TZ > /etc/timezone && \
     microdnf clean all
@@ -71,10 +74,12 @@ RUN groupadd -g 1500 halo && \
     chown -R halo:halo /home/halo /var/run/openhalo $HALO_HOME && \
     chmod 700 /home/halo/ohdata
 
+# Copie du script Python
+COPY ComplianceTestingTool/openhalo_test_suite.py /home/halo/openhalo_test_suite.py
+
 # Copy the entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
 
 
 USER halo
