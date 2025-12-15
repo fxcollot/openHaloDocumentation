@@ -1,3 +1,6 @@
+## Prerequsite
+Download the Dockerfile, docker-entrypointsh and compose.yaml on a mother files called 'PCE' (for example) in which you'll have download the ComplianceTestingTool.
+
 ## Changes to the python script to adapt to the Dockerfile 
 ```python
 def main():
