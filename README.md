@@ -26,26 +26,35 @@ The project was structured into four distinct phases, each contributing creating
 
 This phase focused on creating instructions for setting up OpenHalo in various development environments, ensuring easy entry for new users and developers.
 
-* **Linux and MacOs Environment Installation**: Detailed step-by-step guide for native installation on Linux and MacOs systems.
-* **Dockerized Setup**: Creation and documentation of a reproducible setup using **Docker**, simplifying environment management and dependency handling. (Reference: [HowToUseOpenHalo.md](./HowToUseOpenHalo.md), docker-entrypoint.sh)
+* **Native Installation**:
+    * **Linux**: Step-by-step guide available in [`InstallationDocumentation/LinuxTerminal/InstallationDocumentation.md`](./InstallationDocumentation/LinuxTerminal/InstallationDocumentation.md).
+    * **MacOS**: Dedicated guide in [`InstallationDocumentation/MacOSTerminal/MacOsInstallationGuide.md`](./InstallationDocumentation/MacOSTerminal/MacOsInstallationGuide.md).
+* **Docker Setup**:
+    * We provide a reproducible environment using `compose.yaml` and a custom `docker-entrypoint.sh` located in [`InstallationDocumentation/Docker/`](./InstallationDocumentation/Docker/).
+    * *Usage Guide:* [`HowToUseOpenHalo/HowToUseOpenHalo_Docker.md`](./HowToUseOpenHalo/HowToUseOpenHalo_Docker.md).
 
 ### 2. SQL Compliance Testing Tool
 
 We developed a Python-based utility to audit OpenHalo's support for various SQL statements compared to a reference MySQL instance.
 
+* **The Tool**: The main script is located at [`ComplianceTestingTool/openhalo_test_suite.py`](./ComplianceTestingTool/openhalo_test_suite.py).
+* **Test Dataset (IMDB)**: To ensure realistic testing conditions, we utilized the IMDB dataset. The schema and data used for our tests are available in [`ComplianceTestingTool/DatabasesIMDB`](./ComplianceTestingTool/DatabasesIMDB).
+* **Workflow**: The testing logic and validation process are detailed in [`ComplianceTestingTool/validation_workflow.md`](./ComplianceTestingTool/validation_workflow.md).
+
+Here's how the tool works :
+
 * **Functionality**: The tool runs a set of predefined queries against both databases.
 * **Validation**: It categorizes queries as "Supported" (identical result), "Unsupported" (error in OpenHalo), or "Divergent" (different results).
 * **Edge Cases**: Testing of specific SQL syntax and functions.
-
-* **Internal Reference**: [ComplianceTestingTool](./ComplianceTestingTool)
 
 ### 3. Performance Analysis and Benchmarking
 
 We analyzed the performance characteristics of OpenHalo (backed by PostgreSQL) versus a standard MySQL deployment.
 
-* **Methodology**: Execution of standardized workloads to measure read/write latency and query throughput.
-* **Comparison**: Direct comparison of execution metrics between the two systems.
-
+* **Methodology**: The protocol used for load testing is described in [`ComplianceTestingTool/PerformanceEvaluation.md`](./ComplianceTestingTool/PerformanceEvaluation.md).
+* **Results**:
+    * Raw JSON output: [`ComplianceTestingTool/openhalo_test_results.json`](./ComplianceTestingTool/openhalo_test_results.json)
+      
 ## Getting Started
 
 ### Prerequisites
