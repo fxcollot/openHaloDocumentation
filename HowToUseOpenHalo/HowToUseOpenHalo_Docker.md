@@ -52,7 +52,6 @@ halo0root=#
 
 ```sql
 CREATE EXTENSION aux_mysql;
-CREATE SCHEMA mysql AUTHORIZATION halo;
 CREATE DATABASE openhalo;
 \q
 ```
@@ -60,15 +59,15 @@ CREATE DATABASE openhalo;
 You should see this : 
 ```sql
 CREATE EXTENSION
-ERROR:  schema "mysql" already exists
 CREATE DATABASE
 ```
 
 ## Check if the openhalo database is really created
 
-```bash
-psql -h 127.0.0.1 -p 5434 -U halo -d openhalo
+```sql
+\l
 ```
+## Exit psql bash
 ```bash
 \q
 ```
@@ -78,7 +77,7 @@ psql -h 127.0.0.1 -p 5434 -U halo -d openhalo
 Connect to MySQL client halo (port 3308) : 
 
 ```bash
-  mysql -h openhalo -P 3308 -u halo -p
+  mysql -h openhalo -P 3308 -u halo -p --work also with "mysql -h 127.0.0.1 -P 3308 -u halo -p"
 ```
 Enter the password predetermined, here : halopass
 
