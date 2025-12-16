@@ -6,6 +6,14 @@ All MySQL queries are **automatically translated**, and data is stored in Postgr
 The full workflow is described below.
 
 ---
+## Prerequisites
+Download the files in InstallationDocumentation on your computer. 
+Put them in a file called pce (for example).
+Then, on your terminal, go to pce :
+```terminal
+cd path to pce
+```
+
 ## Remove all volumes from before 
 ```
 docker compose down -v
