@@ -8,7 +8,7 @@ This project, undertaken by a team of students from **IMT Atlantique** in collab
 
 ## Our Key Contributions
 
-Our team developed and implemented a series of components to ensure reliable and validated a siwth to OpenHalo:
+Our team developed and implemented a series of components to ensure reliable and validated a switch to OpenHalo:
 
 * **SQL Compatibility Tester (Python)**: A tool to execute specific SQL queries on both MySQL and OpenHalo to verify support and detect behavioral differences.
 * **Performance Benchmarking**: Protocols and scripts to compare latency and throughput.
