@@ -1,88 +1,112 @@
-# Query Validation & Performance Workflow
+# OpenHalo Validation Protocol & Performance Strategy
 
-This document outlines the automated methodology used to validate SQL queries during the OpenHalo migration project. The validation is performed using our custom Python pipeline (`openhalo_test_suite.py`) which runs A/B testing against a native MySQL instance to ensure protocol compatibility and performance stability.
+## 1. Context and Objectives
+This protocol defines the validation strategy for the assessment of **OpenHalo** (PostgreSQL-based engine) as a target for MySQL workloads. The goal is to verify that:
+- OpenHalo acts as a drop-in replacement for MySQL.
+- Queries executed via the MySQL wire protocol on OpenHalo produce identical results to a native MySQL server.
+- The system handles complex workloads (Concurrency/TPS) comparable to MySQL.
+
+*Note: This protocol focuses on automated A/B testing (Source vs. Target).*
+
+## 2. Test Environment
+To ensure reliable testing, the environment includes:
+- **Two database instances:**
+    - **MySQL 5.7+**: The reference "Source of Truth".
+    - **OpenHalo**: The target engine (PostgreSQL with MySQL translation layer).
+- **Identical Datasets:**
+    - The `imdb` dataset (approx. 100k rows) loaded on both systems.
+    - Tables with relationships (PK/FK), Indexes, and diverse data types.
+- **Automation Tools:**
+    - A custom Python suite (`openhalo_test_suite.py`) utilizing `mysql-connector` to treat both engines as MySQL servers.
+    - Visualization libraries (`matplotlib`) for performance reporting.
+
+## 3. Query Scope (Categories)
+The automated suite covers the following functional areas:
+
+* **Data Retrieval (DQL):** Basic `SELECT`, filtering, Aggregations (`GROUP BY`, `AVG`), Joins (`INNER`, `LEFT`, `SELF`), and Subqueries.
+* **Data Manipulation (DML):** CRUD Cycle (`INSERT` -> `UPDATE` -> `DELETE`) and Transaction integrity (`COMMIT`, `ROLLBACK`).
+* **Advanced Features:** Constraints (`FOREIGN KEY`, `UNIQUE`), String/Math functions, and edge cases like `JSON` support or `UNION` syntax.
+
+For further details, please see the section [`TestingReport/OpenHaloMySQLCompatibilityTestingReport.md`](./TestingReport/OpenHaloMySQLCompatibilityTestingReport.md).
 
 ---
 
-## Step 1: Automated Syntax Validation (Parsing Phase)
+## 4. Validation Workflow (The Pipeline)
 
-The first layer of validation ensures that queries are correctly parsed by the OpenHalo engine (PostgreSQL with MySQL protocol).
+The validation is performed using our custom Python pipeline which runs A/B testing against the native MySQL instance.
 
-### Automated Checks
-The test suite executes a defined set of queries (Standard SQL, Joins, JSON, Spatial...) and automatically classifies the result:
-
+### Step 1: Automated Syntax Validation (Parsing Phase)
+The first layer validation ensures that queries are correctly parsed by the OpenHalo engine.
 - **PASSED:** The query returns a result set or success message.
 - **SYNTAX ERROR:** OpenHalo failed to parse the query (e.g., MySQL specific syntax not supported).
 - **MISSING FEATURE:** The function or operator does not exist in the OpenHalo backend.
 - **PERMS DENIED:** Security restrictions (e.g., `INTO OUTFILE`), considered a "Success" if the error matches MySQL's behavior.
 
-### Why this matters
-It identifies "Showstoppers" immediately. For example, catching that `JSON_EXTRACT` is missing allows the team to plan for application code refactoring early in the process.
-
----
-
-## Step 2: Performance Evaluation (Latency & Throughput)
-
-Unlike simple execution timing, our suite evaluates performance under two distinct conditions using the integrated **StressTest module**.
-
-### 1. Latency (Response Time)
-- **Metric:** **P95 Latency** (95th Percentile).
-- **Goal:** Ensure 95% of requests are served within an acceptable timeframe, filtering out outliers.
-- **Comparison:** The script generates side-by-side graphs comparing OpenHalo vs. MySQL P95 values.
-
-### 2. Throughput (TPS)
-- **Metric:** **TPS** (Transactions Per Second).
-- **Method:** The script simulates **concurrent users** (e.g., 10 threads) hammering the database simultaneously.
-- **Goal:** Validate that OpenHalo's process-based architecture handles load as well as (or better than) MySQL.
-
-### 3. Bulk Operations
-- **Method:** `test_bulk_insert` function using `executemany`.
-- **Metric:** Rows per second ingestion rate.
-- **Goal:** Assess migration speed capabilities.
-
----
-
-## Step 3: Result Consistency (Correctness)
-
+### Step 2: Result Consistency (Correctness)
 We ensure that the migration does not result in data loss or corruption by comparing the outputs of both engines.
-
-### Automated Checks
-For every functional test query, the script compares:
 - **Execution Status:** Did both engines succeed?
-- **Row Counts:** Did both engines return the same number of rows? (e.g., `17,706 rows` on both).
+- **Row Counts:** Did both engines return the same number of rows? (e.g., `17 rows` on both).
 
+### Step 3: Performance Evaluation (Stress Test)
+Unlike simple execution timing, our suite evaluates performance under distinct conditions:
+
+1.  **Latency (P95):** Measures the 95th percentile response time to filter out outliers and ensure stability.
+2.  **Throughput (TPS):** Simulates **concurrent users** (e.g., 10 threads) to validate OpenHalo's process-based architecture under load.
+3.  **Bulk Operations:** Measures ingestion rates (rows/sec) using `executemany` to assess data migration speed.
 
 ---
 
-## Step 4: Optimization (The "Hall of Shame")
+## 5. Automated Synthesis & Metrics (Reporting)
 
-Once the automated suite completes, we analyze the **"Top 10 Slowest Queries"** section generated in the terminal summary.
+Once the automated suite completes, the `generate_summary` function outputs a comprehensive **Synthesis Report** in the terminal for immediate analysis.
 
-### Comparison Logic
-The script calculates the ratio between OpenHalo and MySQL execution time for specific queries:
-- 🔴 **> 1.5x Slower:** Needs optimization (Index missing? Query rewrite needed?).
-- ⚪ **Similar:** Acceptable for migration.
-- 🟢 **Faster:** Performance gain achieved (often observed on complex joins).
+### 5.1. Global Execution Summary
+A high-level view of migration readiness:
+- **✅ OK:** Queries successfully executed with identical results.
+- **⚠ Problems:** Execution succeeded, but data rows differ (logic divergence).
+- **❌ Errors:** Syntax errors or features not yet implemented in OpenHalo.
 
-### Manual Debugging (EXPLAIN)
-For queries flagged as 🔴 (Red), we can perform a manual `EXPLAIN (ANALYZE)` to understand the PostgreSQL planner's decision:
+### 5.2. Comparative Analysis (Regressions vs. Gains)
+The script sorts queries into two lists to highlight performance deltas.
 
-```sql
--- Run manually on OpenHalo for flagged queries
-EXPLAIN (ANALYZE, BUFFERS) SELECT ...;
-```
+#### 🐢 The "Hall of Shame" (Slowest Queries)
+Identifies bottlenecks where OpenHalo is significantly slower than MySQL.
+- **Logic:** Compares execution time ratios.
+- **Flags:**
+    - 🔴 **> 1.5x Slower:** Critical regression (needs indexing or rewrite).
+    - ⚪ **Similar:** Within acceptable margin.
 
-We specifically check for sequential scans on large tables or unused indexes.
+*Debugging Strategy:* For queries flagged as 🔴, we can perform a manual `EXPLAIN (ANALYZE)` to check for sequential scans or unused indexes.
 
-## Artifacts & Deliverables
+#### 🚀 The "Hall of Fame" (Performance Wins)
+Identifies complex operations where OpenHalo (PostgreSQL) outperforms MySQL.
+- **Logic:** OpenHalo is at least **10% faster** (Ratio < 0.9).
+- **Ranking:** Sorted by absolute time gain (ms).
+- **Goal:** Highlights benefits often seen in complex Joins or Analytic functions.
 
-The validation pipeline automatically generates the following artifacts for the client review:
+### 5.3. Category Breakdown
+To pinpoint specific architectural weaknesses, the report aggregates performance by query type:
 
-* **`openhalo_full_compatibility_report.json`**
+| Category | Description | Metric |
+| :--- | :--- | :--- |
+| **Simple SELECT** | Basic reads (`SELECT *`) | Average ms |
+| **Aggregations** | `GROUP BY`, `COUNT`, `SUM` | Average ms |
+| **Joins** | Complex multi-table joins | Average ms |
+| **Subqueries** | Nested `SELECT` statements | Average ms |
+| **DML (Write)** | `INSERT`, `UPDATE`, `DELETE` | Average ms |
+
+### 5.4. Feature Gap Analysis
+A specific section listing **🚫 Unsupported / Failing features**. Helping to generate a "To-Do List" for OpenHalo developers.
+
+---
+
+## 6. Artifacts & Deliverables
+
+The execution of this protocol automatically generates the following files:
+
+1.  **`openhalo_full_compatibility_report.json`**
     * Raw data containing every query execution time, status, and error message.
-* **`benchmark_full_report.png`**
+2.  **`benchmark_full_report.png`**
     * Visual comparison of TPS and P95 Latency under load.
-* **`benchmark_complex_queries.png`**
+3.  **`benchmark_complex_queries.png`**
     * Specific comparison of complex operations (Joins, Subqueries) where PostgreSQL engines usually differ from MySQL.
-
-Specific comparison of complex operations (Joins, Subqueries) where PostgreSQL engines usually differ from MySQL.
