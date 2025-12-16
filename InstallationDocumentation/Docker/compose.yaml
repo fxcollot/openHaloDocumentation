@@ -49,7 +49,7 @@ services:
       - "5434:5434"
     volumes:
       - openhalo_data:/home/halo/ohdata
-      - /Users/neliafedele/Documents/PCE/name_basics_mysql.sql:/home/halo/name_basics_mysql.sql:ro
+      - pathtofile/name_basics_mysql.sql:/home/halo/name_basics_mysql.sql:ro
 
 volumes:
   mysqldb_data:
