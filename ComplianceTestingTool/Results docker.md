@@ -1,5 +1,5 @@
 ## Prerequsite
-Download the Dockerfile, docker-entrypointsh and compose.yaml on a mother files called 'PCE' (for example) in which you'll have download the ComplianceTestingTool.
+Download the Dockerfile, docker-entrypoint.sh and compose.yaml on a root folder called 'PCE' (for example) in which you'll have download the ComplianceTestingTool folder.
 
 ## Changes to the python script to adapt to the Dockerfile 
 ```python
