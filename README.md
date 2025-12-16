@@ -4,7 +4,7 @@
 
 **OpenHalo** is a compatibility layer that enables applications written for **MySQL** to run on **PostgreSQL** without code changes. It supports the MySQL wire protocol and SQL dialect ([Official Documentation](https://www.openhalo.org/)).
 
-This project, undertaken by a team of students from **IMT Atlantique** in collaboration with **Clever Cloud**, focused on significantly enhancing OpenHalo's robustness and usability.
+This project, undertaken by a team of students from **IMT Atlantique** in collaboration with **Clever Cloud**, focused on enhancing OpenHalo's robustness and usability.
 
 ## Our Key Contributions
 
