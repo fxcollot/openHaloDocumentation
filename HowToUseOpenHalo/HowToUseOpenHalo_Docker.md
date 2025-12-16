@@ -8,10 +8,10 @@ The full workflow is described below.
 ---
 ## Prerequisites
 Download the files in InstallationDocumentation on your computer. 
-Put them in a file called pce (for example).
-Then, on your terminal, go to pce :
+Put them in a folder called pce (for example).
+Then, on your terminal, go to this folder :
 ```terminal
-cd path to pce
+cd path to *folder*
 ```
 
 ## Remove all volumes from before 
