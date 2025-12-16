@@ -1,17 +1,17 @@
-# OpenHalo Enhancement Project: Automated Validation and Performance Benchmarking
+# OpenHalo: Compatibility Testing & Performance Benchmarking
 
 ## Project Overview
 
-**OpenHalo** is an innovative tool designed to streamline the complex process of migrating databases from **MySQL** to **PostgreSQL**. It offers automation across key migration stages: **schema conversion, data migration, and performance validation**.
+**OpenHalo** is a compatibility layer that enables applications written for **MySQL** to run on **PostgreSQL** without code changes. It supports the MySQL wire protocol and SQL dialect ([Official Documentation](https://www.openhalo.org/)).
 
 This project, undertaken by a team of students from **IMT Atlantique** in collaboration with **Clever Cloud**, focused on significantly enhancing OpenHalo's robustness and usability.
 
 ## Our Key Contributions
 
-Our team developed and implemented a series of crucial components to ensure reliable and validated migrations:
+Our team developed and implemented a series of components to ensure reliable and validated a siwth to OpenHalo:
 
-* **Python-based Automated Testing Framework**: A tool to automatically execute and validate migration scenarios.
-* **Database Benchmarking**: Scripts and protocols for rigorous performance analysis and comparison.
+* **SQL Compatibility Tester (Python)**: A tool to execute specific SQL queries on both MySQL and OpenHalo to verify support and detect behavioral differences.
+* **Performance Benchmarking**: Protocols and scripts to compare latency and throughput.
 * **Comprehensive Technical Documentation**: Detailed guides for installation, usage, and testing.
 
 | Team Leaders |	Institution |
@@ -20,30 +20,31 @@ Our team developed and implemented a series of crucial components to ensure reli
 
 ## Project Stages and Deliverables
 
-The project was structured into four distinct phases, each contributing a vital component to the overall success of the OpenHalo tool.
+The project was structured into four distinct phases, each contributing creating a new component to this OpenHalo toolbox.
 
 ### 1. Installation and Documentation
 
-This phase focused on creating clear, comprehensive instructions for setting up OpenHalo in various development environments, ensuring a low barrier to entry for new users and developers.
+This phase focused on creating instructions for setting up OpenHalo in various development environments, ensuring easy entry for new users and developers.
 
 * **Linux and MacOs Environment Installation**: Detailed step-by-step guide for native installation on Linux and MacOs systems.
-* **Dockerized Setup**: Creation and documentation of a reproducible setup using **Docker**, simplifying environment management and dependency handling. (Reference: HowToUseOpenHalo.md, docker-entrypoint.sh)
+* **Dockerized Setup**: Creation and documentation of a reproducible setup using **Docker**, simplifying environment management and dependency handling. (Reference: [HowToUseOpenHalo.md](./HowToUseOpenHalo.md), docker-entrypoint.sh)
 
-### 2. Automated Testing Framework Development
+### 2. SQL Compliance Testing Tool
 
-A core deliverable was the creation of a reliable framework to test migration correctness automatically. This tool ensures that the migrated PostgreSQL database accurately reflects the original MySQL database structure and data.
+We developed a Python-based utility to audit OpenHalo's support for various SQL statements compared to a reference MySQL instance.
 
-* **Python-based Tool**: Development of a command-line utility in Python to orchestrate and execute test scenarios.
-* **Test Protocols**: Definition of standardized test cases, including edge case handling and data integrity checks.
-* **Compliance Testing**: Integration of tests focusing on schema compatibility and SQL feature translation. (Reference: ComplianceTestingTool)
+* **Functionality**: The tool runs a set of predefined queries against both databases.
+* **Validation**: It categorizes queries as "Supported" (identical result), "Unsupported" (error in OpenHalo), or "Divergent" (different results).
+* **Edge Cases**: Testing of specific SQL syntax and functions.
+
+* **Internal Reference**: [ComplianceTestingTool](./ComplianceTestingTool)
 
 ### 3. Performance Analysis and Benchmarking
 
-Beyond mere migration, we rigorously tested the performance impact of the migration to ensure that the PostgreSQL deployment maintains or improves the original MySQL performance characteristics.
+We analyzed the performance characteristics of OpenHalo (backed by PostgreSQL) versus a standard MySQL deployment.
 
-* **Benchmarking Setup**: Implementation of a controlled environment to run standardized database load tests.
-* **Comparative Analysis**: Execution of benchmarks (e.g., read/write latency, query throughput) on both the original MySQL and the migrated PostgreSQL databases.
-* **Reporting**: Analysis of results to identify performance regressions or improvements post-migration.
+* **Methodology**: Execution of standardized workloads to measure read/write latency and query throughput.
+* **Comparison**: Direct comparison of execution metrics between the two systems.
 
 ## Getting Started
 
@@ -53,6 +54,8 @@ Beyond mere migration, we rigorously tested the performance impact of the migrat
 * Docker (for the containerized setup)
 * Python 3.x
 * Access to MySQL and PostgreSQL instances
+
+> For official OpenHalo system requirements, refer to the [official website](https://www.openhalo.org/).
 
 ### Installation
 
