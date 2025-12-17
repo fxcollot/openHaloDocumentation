@@ -53,7 +53,6 @@ halo0root=#
 ```sql
 CREATE EXTENSION aux_mysql;
 CREATE DATABASE openhalo;
-\q
 ```
 
 You should see this : 
@@ -77,7 +76,7 @@ CREATE DATABASE
 Connect to MySQL client halo (port 3308) : 
 
 ```bash
-  mysql -h openhalo -P 3308 -u halo -p --work also with "mysql -h 127.0.0.1 -P 3308 -u halo -p"
+  mysql -h openhalo -P 3308 -u halo -p -- work also with "mysql -h 127.0.0.1 -P 3308 -u halo -p"
 ```
 Enter the password predetermined, here : halopass
 
