@@ -21,7 +21,6 @@ The script is specifically designed to test against the **IMDB dataset**. Before
 > **Note:**
 > * We **do not provide** the `films` table in the repository. It is at the user's discretion to import it or create a compatible table if they wish to execute the JOIN test scenarios.
 > * If you are using a completely different dataset, you will need to modify the `DynamicQueryBuilder` class and the `SCHEMA` dictionary at the beginning of the script.
-> * 
 ## 2. Configuration
 
 Open `openhalo_test_suite.py` in your code editor. Scroll down to the `main()` function (near the bottom) and update the connection dictionaries. **You must adapt the `host`, `port`, `user`, `password`, and `database` fields to match your local environment.**
