@@ -79,7 +79,7 @@ RUN groupadd -g 1500 halo && \
     chmod 700 /home/halo/ohdata
 
 # Copy the Python script for compliance testing
-COPY ComplianceTestingTool/openhalo_test_suite.py /home/halo/openhalo_test_suite.py
+COPY ComplianceTestingTool/openhalo_test_suite_docker.py /home/halo/openhalo_test_suite_docker.py
 
 # Copy the entrypoint script
 COPY InstallationDocumentation/Docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
@@ -93,3 +93,4 @@ WORKDIR /home/halo
 EXPOSE 5434 3308
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
