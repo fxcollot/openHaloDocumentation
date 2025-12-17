@@ -29,7 +29,7 @@ This phase focused on creating instructions for setting up OpenHalo in various d
 * **Native Installation**:
     * **Linux**: Step-by-step guide available in [`InstallationDocumentation/LinuxTerminal/InstallationDocumentation.md`](./InstallationDocumentation/LinuxTerminal/InstallationDocumentation.md).
     * **MacOS**: Dedicated guide in [`InstallationDocumentation/MacOSTerminal/MacOsInstallationGuide.md`](./InstallationDocumentation/MacOSTerminal/MacOsInstallationGuide.md).
-    * * *Usage Guide:* [`HowToUseOpenHalo/HowToUseOpenHalo_PC.md`](./HowToUseOpenHalo/HowToUseOpenHalo_PC.md).
+     * *Usage Guide:* [`HowToUseOpenHalo/HowToUseOpenHalo_PC.md`](./HowToUseOpenHalo/HowToUseOpenHalo_PC.md).
 * **Docker Setup**:
     * We provide a reproducible environment using `compose.yaml` and a custom `docker-entrypoint.sh` located in [`InstallationDocumentation/Docker/`](./InstallationDocumentation/Docker/).
     * *Usage Guide:* [`HowToUseOpenHalo/HowToUseOpenHalo_Docker.md`](./HowToUseOpenHalo/HowToUseOpenHalo_Docker.md).
@@ -49,6 +49,8 @@ Here's how the tool works :
 * **Edge Cases**: Testing of specific SQL syntax and functions.
 
 The complete list of executed queries, along with their expected outputs and compatibility status, is documented in [`TestingReport/OpenHaloMySQLCompatibilityTestingReport.md`](./TestingReport/OpenHaloMySQLCompatibilityTestingReport.md).
+
+To run this script, please refer to [`ComplianceTestingTool/Python_tool_usage.md`](./ComplianceTestingTool/Python_tool_usage.md).
 
 ### 3. Performance Analysis and Benchmarking
 
