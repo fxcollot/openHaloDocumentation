@@ -99,7 +99,6 @@ To pinpoint specific architectural weaknesses, the report aggregates performance
 A specific section listing **🚫 Unsupported / Failing features**. Helping to generate a "To-Do List" for OpenHalo developers.
 
 ---
-
 ## 6. Artifacts & Deliverables
 
 The execution of this protocol automatically generates the following files:
@@ -110,3 +109,5 @@ The execution of this protocol automatically generates the following files:
     * Visual comparison of TPS and P95 Latency under load.
 3.  **`benchmark_complex_queries.png`**
     * Specific comparison of complex operations (Joins, Subqueries) where PostgreSQL engines usually differ from MySQL.
+4.  **`benchmark_scatter_comparison.png`**
+    * A scatter plot providing a global visual comparison of execution times (Red zone = MySQL faster, Green zone = OpenHalo faster).
