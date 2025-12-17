@@ -1379,7 +1379,6 @@ LIMIT 5;
 **Notes:**
 - UNION operator not supported in OpenHalo
 - Alternative: Use separate queries or combine with application logic
-- Limitation for MySQL migrations requiring UNION
 
 ---
 
