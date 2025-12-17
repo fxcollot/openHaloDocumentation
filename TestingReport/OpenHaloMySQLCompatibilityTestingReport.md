@@ -221,7 +221,7 @@ ERROR 1478 (HY000): syntax error at or near "("
 
 **Explanation:**  
 
-This uses MySQL’s table partitioning DDL with `PARTITION BY RANGE (YEAR(created_at))`. PostgreSQL has its own partitioning model and syntax on `CREATE TABLE`, and OpenHalo does not attempt to transform MySQL partition clauses into native PostgreSQL partition definitions. As a result, parsing fails immediately after the `PARTITION BY RANGE` clause.
+MySQL supports table partitioning with syntax such as PARTITION BY RANGE (id) (...), where partitions are defined using VALUES LESS THAN (...). On OpenHalo, even the simplest possible statement using this feature, CREATE TABLE part_min (id INT PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10));, fails with ERROR 1478 (HY000): syntax error at or near "(", showing that the PARTITION BY clause itself is not recognized by the PostgreSQL backend, regardless of whether the partition expression is an integer, a date, or a function like YEAR(created_at). The subsequent ERROR 322 (HY000): current transaction is aborted, commands ignored until end of transaction block is simply PostgreSQL’s behavior after a parse error in a transaction, and does not indicate a separate problem with the columns or expressions.
 
 **MySQL 5.7 Results:**  
 
@@ -266,7 +266,7 @@ ERROR 1478 (HY000): syntax error at or near "SELECT"
 
 **Explanation:**  
 
-MySQL stored procedures use a statement-based language with `CREATE PROCEDURE`, `BEGIN ... END` blocks, and procedure-level control flow. PostgreSQL uses PL/pgSQL functions with different syntax and execution model. OpenHalo’s compatibility layer does not rewrite MySQL stored procedure definitions into PostgreSQL functions, so the body of the procedure fails to parse in this context.
+OpenHalo accepts simple MySQL queries but does not implement MySQL’s stored‑procedure language, so a CREATE PROCEDURE ... BEGIN ... END definition is parsed as invalid SQL and fails as soon as the first SELECT inside the block is reached, raising ERROR 1478 (HY000): syntax error at or near "SELECT". The DELIMITER commands are handled only by the mysql client and are not the root cause of the failure; even without changing the delimiter, OpenHalo’s PostgreSQL backend still cannot understand MySQL procedure bodies. After this parse error, the transaction is marked aborted at the PostgreSQL level, so subsequent statements such as CALL get_actors(); are rejected with ERROR 322 (HY000): current transaction is aborted, commands ignored until end of transaction block until the session rolls back or starts a new transaction
 
 **MySQL 5.7.32 Queries:**  
 ```sql
