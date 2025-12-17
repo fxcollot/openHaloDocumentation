@@ -76,8 +76,13 @@ CREATE DATABASE
 Connect to MySQL client halo (port 3308) : 
 
 ```bash
-  mysql -h openhalo -P 3308 -u halo -p -- work also with "mysql -h 127.0.0.1 -P 3308 -u halo -p"
+  mysql -h openhalo -P 3308 -u halo -p
 ```
+or
+```bash
+ mysql -h 127.0.0.1 -P 3308 -u halo -p
+```
+
 Enter the password predetermined, here : halopass
 
 
