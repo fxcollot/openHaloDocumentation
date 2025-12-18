@@ -18,7 +18,7 @@ import concurrent.futures
 import matplotlib.pyplot as plt
 import matplotlib 
 matplotlib.use('Agg')
-import numpy as np # Utile pour positionner les barres
+import numpy as np # Useful for data manipulation
 
 @dataclass
 class QueryResult:
@@ -48,7 +48,7 @@ class DualDatabaseConnector:
         print("Attempting to connect to OpenHalo...")
         try:
             self.openhalo_conn = mysql.connector.connect(**self.openhalo_config)
-            self.openhalo_conn.autocommit = False # Important pour les tests de transaction
+            self.openhalo_conn.autocommit = False # Important for transaction tests
             print("✓ Connected to OpenHalo (Port: {})".format(self.openhalo_config['port']))
         except Exception as e:
             print(f"✗ OpenHalo connection failed: {e}")
@@ -64,15 +64,15 @@ class DualDatabaseConnector:
             print("Warning: Continuing tests with OpenHalo only.")
     
     def close(self):
-        # On protège la fermeture d'OpenHalo
+        # Protect OpenHalo connection closure
         if self.openhalo_conn:
             try:
                 self.openhalo_conn.close()
                 print("\nClosed OpenHalo connection.")
             except:
-                pass # Déjà fermé ou erreur réseau, on ignore
+                pass # Already closed or network error, ignore
 
-        # On protège la fermeture de MySQL
+        # Protect MySQL connection closure
         if self.mysql_conn:
             try:
                 self.mysql_conn.close()
@@ -86,10 +86,10 @@ import random
 
 class DynamicQueryBuilder:
     """
-    Génère des requêtes SQL aléatoires mais valides basées sur la structure de la table.
+    Generates random but valid SQL queries based on the table structure.
     """
     
-    # Définition du schéma pour savoir quoi générer
+    # Schema definition to know what to generate
     SCHEMA = {
         'name_basics': {
             'columns': ['nconst', 'primaryname', 'birthyear', 'deathyear', 'primaryprofession', 'knownfortitles'],
@@ -101,31 +101,31 @@ class DynamicQueryBuilder:
             'numeric': ['release_year', 'rating'],
             'string': ['film_id', 'title', 'genre']
         }
-        # Ajout d'autres tables si nécessaire
+        # Add other tables if necessary
     }
 
     def __init__(self, table_name):
         self.table = table_name
         self.meta = self.SCHEMA.get(table_name)
         if not self.meta:
-            raise ValueError(f"Table {table_name} non définie dans le SCHEMA")
+            raise ValueError(f"Table {table_name} not defined in SCHEMA")
 
     def _get_random_value(self, column):
-        """Génère une valeur fictive pour les clauses WHERE (très basique)"""
+        """Generates a fictive value for WHERE clauses (very basic)"""
         if column in self.meta['numeric']:
             return str(random.randint(1950, 2020))
         else:
-            # Pour les strings, on renvoie une valeur générique ou un pattern
+            # For strings, return a generic value or a pattern
             return "'%actor%'" if 'profession' in column else "'TestValue'"
 
     def build_select(self, mode='random', limit=10):
         """
-        Génère un SELECT dynamique.
+        Generates a dynamic SELECT.
         modes: 'star', 'single', 'multi', 'random'
         """
         cols = self.meta['columns']
         
-        # Choix des colonnes
+        # Column selection
         if mode == 'random':
             mode = random.choice(['star', 'single', 'multi'])
 
@@ -134,17 +134,17 @@ class DynamicQueryBuilder:
         elif mode == 'single':
             selected_cols = random.choice(cols)
         elif mode == 'multi':
-            # Prend entre 2 et le max de colonnes
+            # Take between 2 and the max number of columns
             nb_cols = random.randint(2, len(cols))
             selected_cols = ", ".join(random.sample(cols, nb_cols))
         
         query = f"SELECT {selected_cols} FROM {self.table}"
         
-        # Ajout optionnel d'un WHERE (1 fois sur 3)
+        # Optional addition of a WHERE clause (1 in 3 times)
         if random.random() > 0.7:
             query += self._build_random_where_clause()
             
-        # Ajout optionnel d'un ORDER BY (1 fois sur 3)
+        # Optional addition of an ORDER BY clause (1 in 3 times)
         if random.random() > 0.7:
              col_sort = random.choice(cols)
              direction = random.choice(['ASC', 'DESC'])
@@ -170,35 +170,35 @@ class DynamicQueryBuilder:
         """Génère une agrégation (COUNT, MAX, AVG)"""
         agg_func = random.choice(['COUNT', 'MIN', 'MAX'])
         
-        # On préfère faire des AVG/SUM sur des nombres
+        # Prefer to do AVG/SUM on numbers
         if agg_func in ['AVG', 'SUM']:
             col = random.choice(self.meta['numeric'])
         else:
-            col = random.choice(self.meta['columns']) # COUNT/MIN/MAX marchent sur tout
+            col = random.choice(self.meta['columns']) # COUNT/MIN/MAX work on all
             
-        # Parfois on groupe, parfois non
+        # Sometimes we group, sometimes not
         group_by = ""
-        group_col = random.choice(self.meta['string']) # On groupe souvent par string (ex: profession)
+        group_col = random.choice(self.meta['string']) # We often group by string (e.g., profession)
         
         if random.choice([True, False]):
             base = f"SELECT {group_col}, {agg_func}({col}) FROM {self.table} GROUP BY {group_col}"
-            # Souvent besoin d'un order by avec group by pour la cohérence
+            # Often need an order by with group by for consistency
             base += f" ORDER BY {agg_func}({col}) DESC LIMIT 10;"
             return f"Dynamic AGG ({agg_func} by {group_col})", base
         else:
             return f"Dynamic AGG Simple ({agg_func})", f"SELECT {agg_func}({col}) FROM {self.table};"
 
     def build_complex_where(self, limit=10):
-        """Génère des WHERE avec IN, BETWEEN et OR"""
+        """Generates WHERE clauses with IN, BETWEEN, and OR"""
         cols = self.meta['columns']
-        # On choisit 2 colonnes au hasard pour faire un condition complexe
+        # Choose 2 random columns to make a complex condition
         col1 = random.choice(cols)
         
         mode = random.choice(['IN', 'BETWEEN', 'OR_MIX'])
         query = f"SELECT * FROM {self.table} WHERE "
         
         if mode == 'IN':
-            # Génère (val1, val2, val3)
+            # Generates (val1, val2, val3)
             vals = [self._get_random_value(col1) for _ in range(3)]
             query += f"{col1} IN ({', '.join(vals)})"
             
@@ -234,7 +234,7 @@ class DynamicQueryBuilder:
             query = f"SELECT {str_col}, {func} as res FROM {self.table} WHERE {str_col} IS NOT NULL"
             
         else: # MATH
-            # Test des opérations arithmétiques
+            # Test arithmetic operations
             calc = random.choice([
                 f"({num_col} * 2)", 
                 f"({num_col} % 10)", # Modulo
@@ -246,23 +246,23 @@ class DynamicQueryBuilder:
         return f"Dyn Scalar Func ({func_type})", query
 
     def build_subquery(self, limit=10):
-        """Génère une sous-requête (WHERE col > (SELECT AVG...))"""
-        # On utilise une colonne numérique pour comparer
+        """Generates a subquery (WHERE col > (SELECT AVG...))"""
+        # Use a numeric column for comparison
         num_col = random.choice(self.meta['numeric'])
         
-        # Sous-requête qui calcule une moyenne ou un min
+        # Subquery that calculates an average or a min
         sub = f"(SELECT AVG({num_col}) FROM {self.table} WHERE {num_col} IS NOT NULL)"
         
-        # Requête principale
+        # Main query
         query = f"SELECT * FROM {self.table} WHERE {num_col} > {sub} LIMIT {limit};"
         return f"Dyn Subquery (Compare to AVG)", query
 
     def build_dml_lifecycle(self):
         """
-        Génère une suite INSERT -> UPDATE -> SELECT -> DELETE.
-        Retourne une liste de tuples (desc, sql).
+        Generates a suite INSERT -> UPDATE -> SELECT -> DELETE.
+        Returns a list of tuples (desc, sql).
         """
-        # ID unique pour ne pas casser la prod
+        # Unique ID to avoid breaking production
         unique_id = f"nm99{random.randint(10000, 99999)}"
         name = f"AutoTest_{random.randint(1,999)}"
         
@@ -299,11 +299,11 @@ class DualQueryTester:
         """Execute a query on a given connection and return results + execution time"""
 
         try:
-            # On vérifie si la connexion est active, sinon on reconnecte (3 tentatives)
+            # Check if the connection is active, otherwise reconnect (3 attempts)
             if conn:
                 conn.ping(reconnect=True, attempts=3, delay=1)
         except Exception:
-            # Si le ping échoue, on laisse le curseur tenter sa chance (et échouer proprement)
+            # If the ping fails, let the cursor try its luck (and fail properly)
             pass
 
         cursor = conn.cursor()
@@ -330,8 +330,8 @@ class DualQueryTester:
             return results, (end - start) * 1000  # ms
             
         except mysql.connector.Error as e:
-            # Ne pas rollback systématiquement ici pour permettre de tester les erreurs transactionnelles
-            # mais on rollback en cas d'erreur fatale pour nettoyer la connection
+            # Do not always rollback here to allow testing transactional errors
+            # but rollback on fatal errors to clean the connection
             conn.rollback()
             raise e
         finally:
@@ -404,7 +404,7 @@ class DualQueryTester:
             error_msg = str(e)
             status = "Error"
             
-            # Détection spécifique pour le rapport de compatibilité
+            # Specific detection for the compatibility report
             if "syntax error" in error_msg.lower():
                 status = "SyntaxError"
             elif "doesn't exist" in error_msg.lower() or "unknown" in error_msg.lower():
@@ -469,34 +469,33 @@ class DualQueryTester:
         print(f"  ❌ Errors             : {sum(r.status in ('Error','SyntaxError','MissingFeature') for r in oh)}")
 
         # ---- Slowest OpenHalo queries ----
-        # ---- Slowest OpenHalo queries (COMPARATIVE) ----
-        # C'est la partie la plus intéressante : Les goulots d'étranglement
+        # This is the most interesting part: the bottlenecks
         slow_oh = sorted(
             [r for r in oh if r.mean_time > 0],
             key=lambda r: r.mean_time,
             reverse=True
         )[:10]
 
-        print("\n🐢 TOP 10 REQUÊTES LES PLUS LENTES SUR OPENHALO (vs MySQL)")
-        print(f"  {'ID':<12} | {'OpenHalo (ms)':>15} | {'MySQL (ms)':>15} | {'Différence':>12}")
+        print("\n🐢 TOP 10 QUERIES THE SLOWEST ON OPENHALO (vs MySQL)")
+        print(f"  {'ID':<12} | {'OpenHalo (ms)':>15} | {'MySQL (ms)':>15} | {'Difference':>12}")
         print("-" * 65)
         
         for r in slow_oh:
             oh_time = r.mean_time
-            # On cherche le temps correspondant chez MySQL
+            # Looking for the corresponding time in MySQL
             my_r = mysql_map.get(r.query_id)
             my_time = my_r.mean_time if my_r else 0
             
-            # Calcul de la différence
+            # Calculating the difference
             diff_str = ""
             if my_time > 0:
                 ratio = oh_time / my_time
                 if ratio > 1.5:
-                    diff_str = f"x{ratio:.1f} plus lent 🔴"
+                    diff_str = f"x{ratio:.1f} slower 🔴"
                 elif ratio < 0.7:
-                    diff_str = f"x{1/ratio:.1f} plus rapide 🟢"
+                    diff_str = f"x{1/ratio:.1f} faster 🟢"
                 else:
-                    diff_str = "Similaire ⚪"
+                    diff_str = "Similar ⚪"
             else:
                 diff_str = "N/A"
 
@@ -506,16 +505,16 @@ class DualQueryTester:
         fast_oh = []
         for qid, oh_r in oh_map.items():
             my_r = mysql_map.get(qid)
-            # On compare uniquement si les deux ont réussi
+            # We only compare if both succeeded
             if my_r and oh_r.mean_time > 0 and my_r.mean_time > 0:
-                # Si OH est au moins 10% plus rapide (ratio < 0.9)
+                # If OH is at least 10% faster (ratio < 0.9)
                 if oh_r.mean_time < (my_r.mean_time * 0.9):
                     fast_oh.append((qid, oh_r.mean_time, my_r.mean_time))
         
-        # Tri par le gain de performance (le plus gros écart en premier)
+        # Sort by performance gain (largest difference first)
         fast_oh.sort(key=lambda x: x[2] - x[1], reverse=True)
 
-        print("\n🚀 TOP REQUÊTES OÙ OPENHALO BAT MYSQL (Hall of Fame)")
+        print("\n🚀 TOP QUERIES WHERE OPENHALO BEATS MYSQL (Hall of Fame)")
         print(f"  {'ID':<12} | {'OpenHalo (ms)':>15} | {'MySQL (ms)':>15} | {'Gain':>12}")
         print("-" * 65)
         
@@ -525,7 +524,7 @@ class DualQueryTester:
                 ratio = my_t / oh_t
                 print(f"  {qid:<12} | {oh_t:>15.2f} | {my_t:>15.2f} | -{gain:.1f}ms (x{ratio:.1f})")
         else:
-            print("  Aucune victoire significative détectée sur ce dataset.")
+            print("  No significant wins detected on this dataset.")
 
         # ---- MySQL faster than OpenHalo ----
         print("\n⚡ Queries faster on MySQL than OpenHalo")
@@ -574,7 +573,7 @@ class DualQueryTester:
         }
         
         for cat_name, prefixes in categories.items():
-            # Filtrer les résultats qui commencent par un des préfixes
+            # Filter results that start with one of the prefixes
             oh_cat = [r.mean_time for r in oh if any(r.query_id.startswith(p) for p in prefixes) and r.mean_time > 0]
             my_cat = [r.mean_time for r in mysql if any(r.query_id.startswith(p) for p in prefixes) and r.mean_time > 0]
             
@@ -591,28 +590,28 @@ class StressTester:
         self.duration = duration_seconds
 
     def _worker_task(self):
-        """Simule un utilisateur actif et mesure les latences"""
+        """Simulates an active user and measures latencies"""
         try:
             conn = mysql.connector.connect(**self.db_config)
             cursor = conn.cursor()
         except:
-            return [], 1 # Renvoie une liste vide et 1 erreur
+            return [], 1 # Returns an empty list and 1 error
 
-        latencies = [] # On stocke le temps de chaque requête ici
+        latencies = [] # Storing the time of each query here
         errors = 0
         start_time = time.time()
         
         while time.time() - start_time < self.duration:
             try:
-                req_start = time.perf_counter() # Top chrono
+                req_start = time.perf_counter() # Start timer
                 
-                # Requête simple de lecture
+                # Simple read query
                 cursor.execute("SELECT * FROM name_basics WHERE primaryprofession = 'actor' LIMIT 1")
                 cursor.fetchall()
                 
-                req_end = time.perf_counter() # Fin chrono
+                req_end = time.perf_counter() # End timer
                 
-                # On ajoute la durée en millisecondes (ms) à la liste
+                # Add the duration in milliseconds (ms) to the list
                 latencies.append((req_end - req_start) * 1000)
                 
             except Exception:
@@ -631,12 +630,12 @@ class StressTester:
             futures = [executor.submit(self._worker_task) for _ in range(self.num_threads)]
             for future in concurrent.futures.as_completed(futures):
                 lats, e = future.result()
-                all_latencies.extend(lats) # On fusionne les résultats de tous les threads
+                all_latencies.extend(lats) # We merge the results from all threads
                 total_errors += e
 
         total_queries = len(all_latencies)
         
-        # Calculs statistiques
+        # Statistical calculations
         if self.duration > 0:
             tps = total_queries / self.duration
         else:
@@ -645,18 +644,18 @@ class StressTester:
         if all_latencies:
             avg_lat = mean(all_latencies)
             all_latencies.sort()
-            # P95 : La latence pire que 95% des utilisateurs
+            # P95: Latency worse than 95% of users
             p95_lat = all_latencies[int(len(all_latencies) * 0.95)]
         else:
             avg_lat = 0
             p95_lat = 0
 
         print(f"  ➜ TPS (Transac/Sec): {tps:.2f}")
-        print(f"  ➜ Latence Moyenne  : {avg_lat:.2f} ms")
-        print(f"  ➜ Latence P95      : {p95_lat:.2f} ms")
-        print(f"  ➜ Erreurs          : {total_errors}")
+        print(f"  ➜ Average Latency  : {avg_lat:.2f} ms")
+        print(f"  ➜ P95 Latency      : {p95_lat:.2f} ms")
+        print(f"  ➜ Errors           : {total_errors}")
         
-        # On retourne un dictionnaire, pas juste un float
+        # We return a dictionary, not just a float
         return {
             "tps": tps,
             "avg_latency": avg_lat,
@@ -674,7 +673,7 @@ def test_bulk_insert(target_name, config, batch_size=5000):
         data = [(i, f"val_{i}") for i in range(batch_size)]
         
         start = time.perf_counter()
-        # executemany est optimisé pour le bulk
+        # executemany is optimized for bulk
         cursor.executemany("INSERT INTO bulk_test (id, val) VALUES (%s, %s)", data)
         conn.commit()
         end = time.perf_counter()
@@ -690,8 +689,8 @@ def test_bulk_insert(target_name, config, batch_size=5000):
 
 def main():
     # --- Configuration ---
-    openhalo_config = {'host': 'localhost', 'port': 3306, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
-    mysql_config = {'host': 'localhost', 'port': 3309, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
+    openhalo_config = {'host': 'localhost', 'port': 3308, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
+    mysql_config = {'host': 'localhost', 'port': 3306, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
     
     # --- Setup ---
     print("="*60)
@@ -739,17 +738,17 @@ def main():
     tester.test_query("md_3.4", "Advanced Grouping (FLOOR)", 
         f"SELECT FLOOR(birthyear/10)*10 AS decade, COUNT(*) AS total FROM {table_nb} WHERE birthyear IS NOT NULL GROUP BY decade ORDER BY decade DESC;")
 
-    # --- 1. Génération de SELECT dynamiques ---
-    # On va générer 10 requêtes de sélection totalement différentes
+    # --- 4. Generating Dynamic SELECTs ---
+    # We will generate 10 completely different select queries
     print("\n--- Generating 10 Random SELECT/WHERE/ORDER scenarios ---")
     for i in range(1, 11):
-        # Le builder renvoie une description et la requête SQL
+        # The builder returns a description and the SQL query
         desc, sql = builder.build_select(mode='random', limit=random.randint(5, 50))
         
         query_id = f"dyn_sel_{i}"
         tester.test_query(query_id, desc, sql)
 
-    # --- 2. Génération d'Agrégations dynamiques ---
+    # --- 5. Generating Dynamic Aggregations ---
     print("\n--- Generating 5 Random Aggregation scenarios ---")
     for i in range(1, 6):
         desc, sql = builder.build_aggregation()
@@ -758,41 +757,41 @@ def main():
         tester.test_query(query_id, desc, sql)
 
 
-    # Phase 3: Filtres Complexes (IN, BETWEEN)
-    print("\n--- 3. Génération de Filtres Complexes ---")
+    # Phase 3: Complex Filters (IN, BETWEEN)
+    print("\n--- 3. GGenerating Complex Filters ---")
     for i in range(1, 6):
         desc, sql = builder.build_complex_where()
         tester.test_query(f"dyn_cplx_{i:02d}", desc, sql)
 
-    # Phase 4: Fonctions Scalaires (String/Math)
-    print("\n--- 4. Fonctions Scalaires ---")
+    # Phase 4: Scalar Functions (String/Math)
+    print("\n--- 4. Scalar Functions ---")
     for i in range(1, 6):
         desc, sql = builder.build_scalar_function()
         tester.test_query(f"dyn_func_{i:02d}", desc, sql)
 
-    # Phase 5: Sous-requêtes
-    print("\n--- 5. Sous-requêtes ---")
+    # Phase 5: Subqueries
+    print("\n--- 5. Subqueries ---")
     for i in range(1, 4):
         desc, sql = builder.build_subquery()
         tester.test_query(f"dyn_sub_{i:02d}", desc, sql)
 
-    # Phase 6: Cycle de vie DML (Insert/Update/Delete)
+    # Phase 6: DML Lifecycle (Insert/Update/Delete)
     print("\n--- 6. DML Lifecycle (Safe) ---")
-    # On génère une séquence complète
+    # We generate a complete sequence of DML operations
     dml_steps = builder.build_dml_lifecycle()
     for desc, sql in dml_steps:
-        # Pour le DML, on ne veut pas l'exécuter 3 fois (sinon erreur duplicate key), donc on force iterations=1 temporairement
+        # For DML, we don't want to execute it 3 times (otherwise duplicate key error), so we temporarily force iterations=1
         old_iter = tester.iterations
         tester.iterations = 1 
         tester.test_query("dyn_dml", "DML Lifecycle", sql)
         tester.iterations = old_iter
 
-    # --- 4. Data Manipulation (CRUD) ---
-    print("\n--- 4. Data Manipulation (CRUD) ---")
+    # --- 7. Data Manipulation (CRUD) ---
+    print("\n--- 7. Data Manipulation (CRUD) ---")
     # Using specific ID from MD report: nm9999999
     crud_id = 'nm9999999'
     
-    # Nettoyage préventif
+    # Preventive cleanup
     tester.test_query("md_4.0_cleanup", "Pre-CRUD Cleanup", 
         f"DELETE FROM {table_nb} WHERE nconst = '{crud_id}';")
 
@@ -811,12 +810,12 @@ def main():
     tester.test_query("md_4.4", "DELETE Operation", 
         f"DELETE FROM {table_nb} WHERE nconst = '{crud_id}';")
 
-    # --- 5. Index Management ---
-    print("\n--- 5. Index Management ---")
+    # --- 8. Index Management ---
+    print("\n--- 8. Index Management ---")
 
-    # --- NETTOYAGE PRÉALABLE (Clean Slate) ---
-    # Pour que le test "CREATE INDEX" fonctionne à tous les coups (et mesure vraiment le temps),
-    # il faut d'abord supprimer les index s'ils existent déjà.
+    # --- PRELIMINARY CLEANUP (Clean Slate) ---
+    # To ensure the "CREATE INDEX" test works every time (and truly measures the time),
+    # we must first drop the indexes if they already exist.
     
     def safe_drop_index(conn, table, index_name):
         try:
@@ -826,17 +825,17 @@ def main():
                 conn.commit()
                 cursor.close()
         except:
-            pass # On ignore l'erreur si l'index n'existait pas encore
+            pass # We ignore the error if the index did not exist yet
 
-    # On nettoie sur les deux bases
+    # We clean up on both databases
     safe_drop_index(db.openhalo_conn, table_nb, 'idx_profession')
     safe_drop_index(db.mysql_conn, table_nb, 'idx_profession')
     safe_drop_index(db.openhalo_conn, table_nb, 'idx_birthyear')
     safe_drop_index(db.mysql_conn, table_nb, 'idx_birthyear')
 
-    # --- EXÉCUTION DES TESTS ---
+    # --- TEST EXECUTION ---
     
-    # Test 5.1 : Maintenant ça va marcher car on a fait le ménage avant
+    # Test 5.1 : Now it will work because we cleaned up before
     tester.test_query("md_5.1", "CREATE INDEX VARCHAR", 
         f"CREATE INDEX idx_profession ON {table_nb}(primaryprofession);")
 
@@ -844,7 +843,7 @@ def main():
     tester.test_query("md_5.2", "CREATE INDEX INT", 
         f"CREATE INDEX idx_birthyear ON {table_nb}(birthyear);")
     
-    # Test 5.3 : Vérification
+    # Test 5.3 : Verification
     tester.test_query("md_5.3", "SHOW INDEX", f"SHOW INDEX FROM {table_nb};")
 
     # --- 6. Join Operations ---
@@ -961,8 +960,8 @@ def main():
 
     # 9. Show Table Status (Manquant dans le script original)
     try:
-        # On tente de changer de DB (ce qui échoue souvent sur OH selon le rapport) 
-        # puis d'afficher le status
+        # We try changing DB (which often fails on OH according to the report) 
+        # then display the status
         tester.test_query("prob_9_use", "USE DB", f"USE {openhalo_config['database']};")
         tester.test_query("prob_9_status", "SHOW TABLE STATUS", "SHOW TABLE STATUS;")
     except:
@@ -976,14 +975,11 @@ def main():
     # Test violation
     tester.test_query("md_10.1_fail", "Test UNIQUE Violation", "INSERT INTO films (film_id, title) VALUES ('tt999', 'Example Film 1');")
     
-    # --- Correction Test 10.2 ---
     
-    # Étape 1 : On supprime les acteurs dans film_actor qui n'existent pas dans name_basics
-    # (Sinon la création de la FK échouera car les données ne sont pas intègres)
+    # Step 1: Remove actors in film_actor who do not exist in name_basics
     tester.test_query("md_10.2_pre", "Cleanup Orphan Records", 
         f"DELETE FROM film_actor WHERE nconst NOT IN (SELECT nconst FROM {table_nb});")
-
-    # Étape 2 : Maintenant que les données sont propres, on peut ajouter la FK
+    # Step 2: Now that the data is clean, we can add the FK
     tester.test_query("md_10.2", "Add FK Constraint", 
         f"ALTER TABLE film_actor ADD CONSTRAINT fk_actor FOREIGN KEY (nconst) REFERENCES {table_nb}(nconst);")
     
@@ -1017,10 +1013,10 @@ def main():
 
     # --- 12. Data Export ---
     print("\n--- 12. Data Export ---")
-    # Par défaut, on tente /tmp/
+    # By default, we try /tmp/
     export_path = "/tmp/test_export.csv"
     
-    # TENTATIVE DE DÉTECTION DU DOSSIER AUTORISÉ (MySQL)
+    # ATTEMPT TO DETECT AUTHORIZED FOLDER (MySQL)
     try:
         if db.mysql_conn:
             cursor = db.mysql_conn.cursor()
@@ -1028,32 +1024,31 @@ def main():
             row = cursor.fetchone()
             cursor.close()
             
-            # Si MySQL a une restriction de dossier, on l'utilise
+            # If MySQL has a directory restriction, we use it
             if row and row[0]:
                 secure_path = row[0]
-                # On s'assure que le chemin finit bien par / ou \
+                # Ensure the path ends with / or \
                 if not secure_path.endswith('/') and not secure_path.endswith('\\'):
                     secure_path += '/'
                 
-                # On génère un nom de fichier unique pour éviter l'erreur "File already exists"
+                # We generate a unique filename to avoid the "File already exists" error
                 filename = f"test_export_{random.randint(1000,9999)}.csv"
                 export_path = f"{secure_path}{filename}"
                 print(f"  [System] MySQL secure path detected. Using: {export_path}")
     except Exception as e:
         print(f"  [System] Warning: Could not detect secure_file_priv: {e}")
 
-    # On lance le test avec le chemin adapté
-    # Note : OpenHalo échouera de toute façon (Syntax Error), donc le chemin importe peu pour lui.
-    # Pour MySQL, cela devrait maintenant passer au VERT (si l'utilisateur a les droits FILE).
+    # We run the test with the adapted path
+    # Note: OpenHalo will fail anyway (Syntax Error), so the path doesn't matter for it.
+    # For MySQL, this should now pass (if the user has FILE rights).
     tester.test_query("md_12.1", "INTO OUTFILE (Expected Fail on OH)", 
         f"SELECT * FROM {table_nb} LIMIT 10 INTO OUTFILE '{export_path.replace(chr(92), '/')}' FIELDS TERMINATED BY ',' ENCLOSED BY '\"' LINES TERMINATED BY '\\n';")
     import subprocess
 
-    # ... dans la section 12 ...
     print("\n--- 12.2 Shell Export (System Command) ---")
     try:
         cmd = f"mysql -P {mysql_config['port']} -h {mysql_config['host']} -u {mysql_config['user']} -p{mysql_config['password']} -e 'USE {mysql_config['database']}; SELECT * FROM {table_nb} LIMIT 5;' | sed 's/\\t/,/g'"
-        # On ne l'exécute pas vraiment pour ne pas spammer la console, mais on loggue que c'est un test manuel/système
+        # We do not actually execute it to avoid spamming the console, but we log that it is a manual/system test
         print("  [System] Shell export command defined but skipped in Python connector test.")
     except Exception as e:
         print(f"  [System] Error defining shell command: {e}")
@@ -1113,8 +1108,8 @@ def main():
     # 8. Handler
     tester.test_query("prob_8", "HANDLER OPEN", f"HANDLER {table_nb} OPEN;")
 
-    # --- AJOUT: 9. Show Table Status ---
-    # Le rapport indique que cela échoue souvent à cause du contexte de la DB
+    # --- 9. Show Table Status ---
+    # The report indicates this often fails due to the DB context
     tester.test_query("prob_9", "SHOW TABLE STATUS", "SHOW TABLE STATUS;")
 
     # 10. Get Diagnostics
@@ -1142,21 +1137,21 @@ def main():
     stress_mysql = StressTester(mysql_config, num_threads=10, duration_seconds=5)
     results_data['MySQL'] = stress_mysql.run_benchmark("MySQL")
 
-    # --- Génération des Graphiques (TPS et Latence) ---
+    # --- Generating Performance Graphs (TPS and Latency) ---
     try:
         targets = list(results_data.keys())
         tps_vals = [results_data[t]['tps'] for t in targets]
         lat_vals = [results_data[t]['p95_latency'] for t in targets]
         
-        # Création d'une figure avec 2 sous-graphiques (1 ligne, 2 colonnes)
+        # Creating a figure with 2 subplots (1 row, 2 columns)
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
         
-        colors = ['#4CAF50', '#2196F3'] # Vert, Bleu
+        colors = ['#4CAF50', '#2196F3'] # Green, Blue
 
-        # --- Graphique 1 : TPS (Débit) ---
+        # --- Graph 1: TPS (Throughput) ---
         bars1 = ax1.bar(targets, tps_vals, color=colors, width=0.5)
-        ax1.set_title('Débit (TPS)\n(Plus c\'est haut, mieux c\'est)', fontsize=12, fontweight='bold')
-        ax1.set_ylabel('Transactions / Seconde')
+        ax1.set_title('Throughput (TPS)\n(Higher is better)', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Transactions / Second')
         ax1.grid(axis='y', linestyle='--', alpha=0.5)
         
         # Etiquettes TPS
@@ -1164,10 +1159,10 @@ def main():
             height = bar.get_height()
             ax1.text(bar.get_x() + bar.get_width()/2., height, f'{height:.0f}', ha='center', va='bottom', fontweight='bold')
 
-        # --- Graphique 2 : Latence P95 (Temps de réponse) ---
+        # --- Graph 2: P95 Latency (Response Time) ---
         bars2 = ax2.bar(targets, lat_vals, color=colors, width=0.5)
-        ax2.set_title('Latence P95 (Temps de réponse)\n(Plus c\'est bas, mieux c\'est)', fontsize=12, fontweight='bold')
-        ax2.set_ylabel('Millisecondes (ms)')
+        ax2.set_title('P95 Latency (Response Time)\n(Lower is better)', fontsize=12, fontweight='bold')
+        ax2.set_ylabel('Milliseconds (ms)')
         ax2.grid(axis='y', linestyle='--', alpha=0.5)
 
         # Etiquettes Latence
@@ -1185,25 +1180,25 @@ def main():
     except Exception as e:
         print(f"⚠ Erreur graphique : {e}")
 
-    # --- 15. GRAPHIQUE DES REQUÊTES COMPLEXES (NOUVEAU) ---
+    # --- 15. COMPLEX QUERIES COMPARISON GRAPH ---
     print("\n--- Generating Complex Queries Comparison Graph ---")
 
-    # Liste des IDs des requêtes "lourdes" qu'on veut comparer visuellement
+    # List of "heavy" query IDs we want to visually compare
     target_ids = [
         'md_6.1',   # Multi-Table JOIN
         'md_6.2',   # LEFT JOIN + Aggregation
-        'md_11.2',  # Correlated Subquery (Souvent lent sur MySQL, rapide sur PG)
+        'md_11.2',  # Correlated Subquery (Often slow on MySQL, fast on PG)
         'md_3.4',   # Advanced Grouping
         'md_10.1'   # Constraint Check
     ]
     
-    # Extraction des données
+    # Data extraction
     labels = []
     oh_times = []
     mysql_times = []
     
-    # On parcourt les résultats pour trouver les temps moyens
-    # On utilise un dictionnaire pour accès rapide
+    # We iterate over the results to find the average times
+    # We use a dictionary for quick access
     oh_results = {r.query_id: r.mean_time for r in tester.results if r.target == 'OpenHalo'}
     mysql_results = {r.query_id: r.mean_time for r in tester.results if r.target == 'MySQL'}
     
@@ -1213,37 +1208,35 @@ def main():
             oh_times.append(oh_results[qid])
             mysql_times.append(mysql_results[qid])
             
-    # Création du Graphique Comparatif
+    # Create the Comparison Graph
     if labels:
         try:
-            x = np.arange(len(labels))  # Position des labels
-            width = 0.35  # Largeur des barres
+            x = np.arange(len(labels))  # Position of labels
+            width = 0.35  # Width of bars
             
             fig, ax = plt.subplots(figsize=(12, 6))
             
             rects1 = ax.bar(x - width/2, oh_times, width, label='OpenHalo', color='#4CAF50')
             rects2 = ax.bar(x + width/2, mysql_times, width, label='MySQL', color='#2196F3')
             
-            # Textes et Titres
-            ax.set_ylabel('Temps d\'exécution (ms)')
-            ax.set_title('Performance sur Requêtes Complexes (Latence Moyenne)')
+            # Texts and Titles
+            ax.set_ylabel('Execution Time (ms)')
+            ax.set_title('Performance on Complex Queries (Average Latency)')
             ax.set_xticks(x)
             ax.set_xticklabels(labels)
             ax.legend()
             ax.grid(axis='y', linestyle='--', alpha=0.3)
             
-            # Ajout des valeurs au dessus des barres
-            # Ajout des valeurs au dessus des barres
+            # Adding values above the bars
             def autolabel(rects):
                 for rect in rects:
                     height = rect.get_height()
-                    # CORRECTION ICI : on utilise get_width() et get_x()
                     width = rect.get_width()
                     x_pos = rect.get_x()
                     
                     ax.annotate(f'{height:.1f}',
                                 xy=(x_pos + width / 2, height),
-                                xytext=(0, 3),  # 3 points vertical offset
+                                xytext=(0, 3), 
                                 textcoords="offset points",
                                 ha='center', va='bottom', fontsize=8)
 
@@ -1252,54 +1245,54 @@ def main():
             
             plt.tight_layout()
             plt.savefig("benchmark_complex_queries.png", dpi=300)
-            print(f"📊 Graphique requêtes complexes généré : benchmark_complex_queries.png")
+            print(f"📊 Complex Queries Graph generated: benchmark_complex_queries.png")
             
         except Exception as e:
-            print(f"⚠ Erreur graphe complexe : {e}")
+            print(f"⚠ Complex graph error: {e}")
     else:
-        print("⚠ Pas assez de données pour le graphe complexe.")
+        print("⚠ Not enough data for the complex graph.")
 
 
-    # --- Graphique 3 : Scatter Plot (Comparaison directe) ---
-    # On crée une nouvelle figure pour ne pas surcharger la première
+    # --- Graph 3: Scatter Plot (Direct Comparison) ---
+    # Create a new figure to avoid overloading the first one
     plt.figure(figsize=(10, 10))
     
-    # On récupère les paires de temps (uniquement quand les deux ont réussi)
+    # We retrieve pairs of times (only when both succeeded)
     common_ids = []
     x_mysql = []
     y_openhalo = []
     
     for r in tester.results:
         if r.target == 'OpenHalo':
-            # Trouver le résultat MySQL correspondant
+            # Find the corresponding MySQL result
             my_res = next((m for m in tester.results if m.target == 'MySQL' and m.query_id == r.query_id), None)
             if my_res and r.mean_time > 0 and my_res.mean_time > 0:
-                # On filtre les outliers extrêmes (> 1000ms) pour garder le graphe lisible
+                # We filter out extreme outliers (> 1000ms) to keep the graph readable
                 if r.mean_time < 2000 and my_res.mean_time < 2000:
                     common_ids.append(r.query_id)
                     y_openhalo.append(r.mean_time)
                     x_mysql.append(my_res.mean_time)
 
-    # Tracer les points
-    plt.scatter(x_mysql, y_openhalo, color='purple', alpha=0.6, label='Requêtes')
+    # Plot the points
+    plt.scatter(x_mysql, y_openhalo, color='purple', alpha=0.6, label='Queries')
     
-    # Tracer la ligne diagonale (y=x)
+    # Plot the diagonal line (y=x)
     limit = max(max(x_mysql or [1]), max(y_openhalo or [1]))
-    plt.plot([0, limit], [0, limit], 'k--', label='Égalité parfaite')
+    plt.plot([0, limit], [0, limit], 'k--', label='Perfect Equality')
     
-    # Zone verte (OpenHalo plus rapide)
-    plt.fill_between([0, limit], 0, [0, limit], color='green', alpha=0.1, label='Zone OpenHalo Rapide')
-    # Zone rouge (MySQL plus rapide)
-    plt.fill_between([0, limit], [0, limit], limit, color='red', alpha=0.1, label='Zone MySQL Rapide')
+    # Green zone (OpenHalo faster)
+    plt.fill_between([0, limit], 0, [0, limit], color='green', alpha=0.1, label='OpenHalo Faster Zone')
+    # Red zone (MySQL faster)
+    plt.fill_between([0, limit], [0, limit], limit, color='red', alpha=0.1, label='MySQL Faster Zone')
 
-    plt.xlabel('Temps MySQL (ms)')
-    plt.ylabel('Temps OpenHalo (ms)')
-    plt.title('Comparaison Directe des Temps d\'Exécution')
+    plt.xlabel('MySQL Time (ms)')
+    plt.ylabel('OpenHalo Time (ms)')
+    plt.title('Direct Comparison of Execution Times')
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.5)
     
     plt.savefig("benchmark_scatter_comparison.png", dpi=300)
-    print(f"📊 Graphique Scatter Plot généré : benchmark_scatter_comparison.png")
+    print(f"📊 Scatter Plot Graph generated: benchmark_scatter_comparison.png")
 
     # --- Finalize ---
     tester.generate_report()
