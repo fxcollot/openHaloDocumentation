@@ -1,6 +1,7 @@
 # OpenHalo MySQL Compatibility Testing Report
 
 A comprehensive test suite validating MySQL protocol compatibility and standard SQL operations on OpenHalo - a PostgreSQL fork with MySQL wire protocol support.
+Tests were done on OpenHalo Version: 1.0.14.18 (251127). Subsequent updates may bridge the compatibility gaps discussed in this report.
 
 ---
 
