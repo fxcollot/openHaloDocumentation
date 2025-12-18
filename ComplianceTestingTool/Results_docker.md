@@ -8,7 +8,7 @@ def main():
     openhalo_config = {'host': '127.0.0.1', 'port': 3308, 'user': 'halo', 'password': 'halopass', 'database': 'mydb'}
     mysql_config = {'host': '127.0.0.1', 'port': 3306, 'user': 'halo', 'password': 'halopass', 'database': 'openhalo'}
 ```
-## Create db in Mysql 
+## Create db in MySQL container 
 Follow the previous step we did in Openhalo but in MySQL
 
 ```bash
