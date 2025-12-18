@@ -689,8 +689,8 @@ def test_bulk_insert(target_name, config, batch_size=5000):
 
 def main():
     # --- Configuration ---
-    openhalo_config = {'host': 'localhost', 'port': 3308, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
-    mysql_config = {'host': 'localhost', 'port': 3306, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
+    openhalo_config = {'host': 'localhost', 'port': 3306, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
+    mysql_config = {'host': 'localhost', 'port': 3309, 'user': 'halo', 'password': 'halo', 'database': 'testdb'}
     
     # --- Setup ---
     print("="*60)
